@@ -1,0 +1,33 @@
+<!-- sample_menu.xml -->
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- https://fonts.google.com/icons?selected=Material+Icons -->
+
+    <item
+        android:id="@+id/action_export_mail"
+        android:title="Export Mail"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_export_text_file"
+        android:title="Export text File"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_export_binary_file"
+        android:title="Export binary File"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_import_text_file"
+        android:title="Import text File"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_import_binary_file"
+        android:title="Import binary File"
+        app:showAsAction="never"/>
+
+</menu>

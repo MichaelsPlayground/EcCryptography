@@ -34,6 +34,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -57,8 +58,8 @@ public class MainActivity extends AppCompatActivity {
     byte[] shareTwo;
     byte[] expandedAesKeyOne;
     byte[] expandedAesKeyTwo;
-    byte[] expandedIvOne;
-    byte[] expandedIvTwo;
+    byte[] expandedIvOne, expandedIvTwo;
+    byte[] expandedNonceOne, expandedNonceTwo;
     byte[] plaintext, encrypted; byte[] decrypted;
 
     @Override
@@ -157,17 +158,21 @@ public class MainActivity extends AppCompatActivity {
                 //create expanded bytes for e.g. AES secret key and IV
                 expandedAesKeyOne = hkdf.expand(pseudoRandomKeyOne, "aes-key".getBytes(StandardCharsets.UTF_8), 32);
                 expandedIvOne = hkdf.expand(pseudoRandomKeyOne, "aes-iv".getBytes(StandardCharsets.UTF_8), 16);
+                expandedNonceOne = hkdf.expand(pseudoRandomKeyOne, "aes-nonce".getBytes(StandardCharsets.UTF_8), 12);
 
                 expandedAesKeyTwo = hkdf.expand(pseudoRandomKeyTwo, "aes-key".getBytes(StandardCharsets.UTF_8), 32);
                 expandedIvTwo = hkdf.expand(pseudoRandomKeyTwo, "aes-iv".getBytes(StandardCharsets.UTF_8), 16);
+                expandedNonceTwo = hkdf.expand(pseudoRandomKeyTwo, "aes-nonce".getBytes(StandardCharsets.UTF_8), 12);
 
                 StringBuilder sb = new StringBuilder();
                 sb.append("HKDF one").append("\n");
                 sb.append("expandedAesKey length: ").append(expandedAesKeyOne.length).append(" data: ").append(bytesToHexNpe(expandedAesKeyOne)).append("\n");
                 sb.append("expandedIv     length: ").append(expandedIvOne.length).append(" data: ").append(bytesToHexNpe(expandedIvOne)).append("\n");
+                sb.append("expandedNonce  length: ").append(expandedNonceOne.length).append(" data: ").append(bytesToHexNpe(expandedNonceOne)).append("\n");
                 sb.append("HKDF two").append("\n");
                 sb.append("expandedAesKey length: ").append(expandedAesKeyTwo.length).append(" data: ").append(bytesToHexNpe(expandedAesKeyTwo)).append("\n");
                 sb.append("expandedIv     length: ").append(expandedIvTwo.length).append(" data: ").append(bytesToHexNpe(expandedIvTwo)).append("\n");
+                sb.append("expandedNonce  length: ").append(expandedNonceTwo.length).append(" data: ").append(bytesToHexNpe(expandedNonceTwo)).append("\n");
                 tv2.setText(sb.toString());
             }
         });
@@ -180,7 +185,7 @@ public class MainActivity extends AppCompatActivity {
                 //Example boilerplate encrypting a simple string with created key/iv
                 // encryption
                 plaintext = "my secret message".getBytes(StandardCharsets.UTF_8);
-                SecretKey keyOne = new SecretKeySpec(expandedAesKeyOne, "AES"); //AES-128 key
+                SecretKey keyOne = new SecretKeySpec(expandedAesKeyOne, "AES"); //AES-256 key
                 Cipher cipherOne = null;
                 try {
                     cipherOne = Cipher.getInstance("AES/CBC/PKCS5Padding");
@@ -192,11 +197,11 @@ public class MainActivity extends AppCompatActivity {
                     throw new RuntimeException(e);
                 }
                 // decryption
-                SecretKey keyTwo = new SecretKeySpec(expandedAesKeyTwo, "AES"); //AES-128 key
+                SecretKey keyTwo = new SecretKeySpec(expandedAesKeyTwo, "AES"); //AES-256 key
                 Cipher cipherTwo = null;
                 try {
                     cipherTwo = Cipher.getInstance("AES/CBC/PKCS5Padding");
-                    cipherTwo.init(Cipher.DECRYPT_MODE, keyOne, new IvParameterSpec(expandedIvTwo));
+                    cipherTwo.init(Cipher.DECRYPT_MODE, keyTwo, new IvParameterSpec(expandedIvTwo));
                     decrypted = cipherTwo.doFinal(encrypted);
                 } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
                          BadPaddingException | NoSuchPaddingException |
@@ -204,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
                     throw new RuntimeException(e);
                 }
                 StringBuilder sb = new StringBuilder();
-                sb.append("encrypted one").append("\n");
+                sb.append("AES/CBC/PKCS5Padding").append("\n");
                 sb.append("plaintext one: ").append(new String(plaintext)).append("\n");
                 sb.append("plaintext length: ").append(plaintext.length).append(" data: ").append(bytesToHexNpe(plaintext)).append("\n");
                 sb.append("encrypted length: ").append(encrypted.length).append(" data: ").append(bytesToHexNpe(encrypted)).append("\n");
@@ -212,7 +217,6 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("decrypted length: ").append(decrypted.length).append(" data: ").append(bytesToHexNpe(decrypted)).append("\n");
                 sb.append("decrypted two: ").append(new String(decrypted)).append("\n");
                 tv2.setText(sb.toString());
-
             }
         });
 
@@ -220,7 +224,42 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Log.i(TAG, "btn 6");
-
+                // encryption / decryption
+                //Example boilerplate encrypting a simple string with created key/iv
+                // encryption
+                plaintext = "my secret message".getBytes(StandardCharsets.UTF_8);
+                SecretKey keyOne = new SecretKeySpec(expandedAesKeyOne, "AES"); //AES-256 key
+                Cipher cipherOne = null;
+                try {
+                    cipherOne = Cipher.getInstance("AES/GCM/NoPadding");
+                    cipherOne.init(Cipher.ENCRYPT_MODE, keyOne, new GCMParameterSpec(16, expandedNonceOne));
+                    encrypted = cipherOne.doFinal(plaintext);
+                } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
+                         BadPaddingException | NoSuchPaddingException |
+                         InvalidAlgorithmParameterException | InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                }
+                // decryption
+                SecretKey keyTwo = new SecretKeySpec(expandedAesKeyTwo, "AES"); //AES-256 key
+                Cipher cipherTwo = null;
+                try {
+                    cipherTwo = Cipher.getInstance("AES/GCM/NoPadding");
+                    cipherTwo.init(Cipher.DECRYPT_MODE, keyTwo, new GCMParameterSpec(16, expandedNonceTwo));
+                    decrypted = cipherTwo.doFinal(encrypted);
+                } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
+                         BadPaddingException | NoSuchPaddingException |
+                         InvalidAlgorithmParameterException | InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                }
+                StringBuilder sb = new StringBuilder();
+                sb.append("AES/GCM/NoPadding").append("\n");
+                sb.append("plaintext one: ").append(new String(plaintext)).append("\n");
+                sb.append("plaintext length: ").append(plaintext.length).append(" data: ").append(bytesToHexNpe(plaintext)).append("\n");
+                sb.append("encrypted length: ").append(encrypted.length).append(" data: ").append(bytesToHexNpe(encrypted)).append("\n");
+                sb.append("decrypted two").append("\n");
+                sb.append("decrypted length: ").append(decrypted.length).append(" data: ").append(bytesToHexNpe(decrypted)).append("\n");
+                sb.append("decrypted two: ").append(new String(decrypted)).append("\n");
+                tv2.setText(sb.toString());
             }
         });
 

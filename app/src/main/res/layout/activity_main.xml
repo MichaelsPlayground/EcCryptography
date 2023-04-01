@@ -123,7 +123,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginLeft="8dp"
                     android:layout_weight="1"
-                    android:text="encr / decr" />
+                    android:text="encr / decr CBC" />
             </LinearLayout>
 
             <com.google.android.material.divider.MaterialDivider
@@ -146,7 +146,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginRight="8dp"
                     android:layout_weight="1"
-                    android:text="Button 6" />
+                    android:text="encr / decr GCM" />
 
                 <Button
                     android:id="@+id/btn7"

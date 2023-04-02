@@ -46,6 +46,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import de.androidcrypto.eccryptography.model.EcdhModel;
+import de.androidcrypto.eccryptography.model.EcdheModel;
 import de.androidcrypto.eccryptography.model.PublicKeyModel;
 
 public class MainActivity extends AppCompatActivity {
@@ -402,6 +403,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 Log.d(TAG, "btn8");
                 StringBuilder sb = new StringBuilder();
+                sb.append("ECDH encryption").append("\n");
                 // step 1 generate key pairs
                 String uuid1 = EcdhEncryption.generateUuid();
                 sb.append("generate EC key 1 with UUID: ").append(uuid1).append("\n");
@@ -436,6 +438,56 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 byte[] decryptedData = EcdhEncryption.decryptData(ecdhCiphertext, senderPubKey);
+                if (decryptedData != null) {
+                    sb.append("decryptedData: ").append(new String(decryptedData)).append("\n");
+                } else {
+                    sb.append("Error on decryption").append("\n");
+                }
+
+                tv2.setText(sb.toString());
+            }
+        });
+
+        btn9.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Log.d(TAG, "btn9");
+                StringBuilder sb = new StringBuilder();
+                sb.append("ECDHE encryption").append("\n");
+                // step 1 generate key pairs
+                String uuid1 = EcdheEncryption.generateUuid();
+                sb.append("generate EC key 1 with UUID: ").append(uuid1).append("\n");
+                PublicKeyModel pk1 = EcdheEncryption.generateEcKey(uuid1, PublicKeyModel.KEY_PARAMETER.P_256.toString());
+                sb.append("publicKey 1:").append("\n").append(pk1.dump()).append("\n");
+                String uuid2 = EcdheEncryption.generateUuid();
+                sb.append("generate EC key 2 with UUID: ").append(uuid2).append("\n");
+                PublicKeyModel pk2 = EcdheEncryption.generateEcKey(uuid2, PublicKeyModel.KEY_PARAMETER.P_256.toString());
+                sb.append("publicKey 2:").append("\n").append(pk2.dump()).append("\n");
+
+                String dataToEncryptString = "The quick fox";
+                sb.append("=== Encryption ===").append("\n");
+                sb.append("plaintext: ").append(dataToEncryptString).append("\n");
+                byte[] dataToEncrypt = dataToEncryptString.getBytes(StandardCharsets.UTF_8);
+                EcdheModel ecdheCiphertext = EcdheEncryption.encryptData(uuid1, uuid2, pk2, EcdhModel.HKDF_ALGORITHM.HMAC_SHA256.toString() , EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString(), dataToEncrypt);
+                //EcdheModel ecdheCiphertext = EcdheEncryption.encryptData(uuid1, uuid2, pk2, EcdhModel.HKDF_ALGORITHM.HMAC_SHA512.toString() , EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString(), dataToEncrypt);
+                if (ecdheCiphertext != null) {
+                    sb.append("encryptedData:").append("\n").append(ecdheCiphertext.dump()).append("\n");
+                }
+                sb.append("").append("\n");
+                sb.append("=== Decryption ===").append("\n");
+
+                KeyFactory kf = null;
+                PublicKey senderPubKey;
+                byte[] encodedSenderPublicKey = base64Decoding(pk1.getKeyEncodedBase64());
+                try {
+                    kf = KeyFactory.getInstance("EC");
+                    senderPubKey = (PublicKey) kf.generatePublic(new X509EncodedKeySpec(encodedSenderPublicKey));
+                } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                    //throw new RuntimeException(e);
+                    Log.e(TAG, "Exception: " + e.getMessage());
+                    return;
+                }
+                byte[] decryptedData = EcdheEncryption.decryptData(ecdheCiphertext);
                 if (decryptedData != null) {
                     sb.append("decryptedData: ").append(new String(decryptedData)).append("\n");
                 } else {

@@ -10,3 +10,4 @@ There are 4 steps to run the encryption/decryption
 2) calculate the shared secrets for both parties ("one" and "two")
 3) derive the encryption key using HKDF
 4) encrypt and decrypt data using the derived encryption key
+

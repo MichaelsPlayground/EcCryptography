@@ -1,8 +1,9 @@
 package de.androidcrypto.eccryptography.model;
 
-public class EcdhModel {
+public class EcdheModel {
 
     private final String keyId; // key from other party = recipient
+    private final String senderPublicKeyBase64; // public key from sender
     private final String deriveSaltBase64; // the salt used for HKDF derivation in Base64 encoding
     private final String deriveName; // the name used for HKDF derivation in Base64 encoding
     private final String deriveAlgorithm; // HMAC-SHA256 or HMAC-SHA512
@@ -10,8 +11,9 @@ public class EcdhModel {
     private final String ivBase64; // the init vector (or nonce) in Base64 encoding
     private final String ciphertextBase64; // the encrypted data
 
-    public EcdhModel(String keyId, String deriveSaltBase64, String deriveName, String deriveAlgorithm, String encryptionAlgorithm, String ivBase64, String ciphertextBase64) {
+    public EcdheModel(String keyId, String senderPublicKeyBase64, String deriveSaltBase64, String deriveName, String deriveAlgorithm, String encryptionAlgorithm, String ivBase64, String ciphertextBase64) {
         this.keyId = keyId;
+        this.senderPublicKeyBase64 = senderPublicKeyBase64;
         this.deriveSaltBase64 = deriveSaltBase64;
         this.deriveName = deriveName;
         this.deriveAlgorithm = deriveAlgorithm;
@@ -30,6 +32,10 @@ public class EcdhModel {
 
     public String getKeyId() {
         return keyId;
+    }
+
+    public String getSenderPublicKeyBase64() {
+        return senderPublicKeyBase64;
     }
 
     public String getDeriveSaltBase64() {
@@ -58,8 +64,9 @@ public class EcdhModel {
 
     public String dump() {
         StringBuilder sb = new StringBuilder();
-        sb.append("ECDH encrypted data").append("\n");
+        sb.append("ECDHE encrypted data").append("\n");
         sb.append("keyId: ").append(keyId).append("\n");
+        sb.append("senderPublicKeyBase64: ").append(senderPublicKeyBase64).append("\n");
         sb.append("deriveSaltBase64: ").append(deriveSaltBase64).append("\n");
         sb.append("deriveName: ").append(deriveName).append("\n");
         sb.append("deriveAlgorithm: ").append(deriveAlgorithm).append("\n");

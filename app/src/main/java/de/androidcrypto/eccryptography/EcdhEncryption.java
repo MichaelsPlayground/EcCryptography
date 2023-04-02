@@ -98,9 +98,32 @@ public class EcdhEncryption {
     }
 
     //EcdhModel ecdhCiphertext = EcdhEncryption.encryptData(keyId, remotePublicKey, EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING, dataToEncrypt);
-    public static EcdhModel encryptData(String senderKeyId, String recipientKeyId,  PublicKeyModel remotePublicKey, String encryptionAlgorithm, byte[] dataToEncrypt) {
+    public static EcdhModel encryptData(String senderKeyId, String recipientKeyId,  PublicKeyModel remotePublicKey, String deriveAlgorithm, String encryptionAlgorithm, byte[] dataToEncrypt) {
         // todo sanity checks
         // todo remote public key = "EC", keyParameter allowed, encryptionAlgorithm allowed, dataToEncrypt != null
+
+        // deriveAlgorithm
+        HKDF hkdf = null;
+        if (deriveAlgorithm.equals(EcdhModel.HKDF_ALGORITHM.HMAC_SHA256.toString())) {
+            hkdf = HKDF.fromHmacSha256();
+        } else if (deriveAlgorithm.equals(EcdhModel.HKDF_ALGORITHM.HMAC_SHA512.toString())) {
+            hkdf = HKDF.fromHmacSha512();
+        } else {
+            // at this pint no valid deriveAlgorithm was found
+            Log.e(TAG, "no valid deriveAlgorithm found, aborted");
+            return null;
+        }
+        // encryptionAlgorithm
+        String transformation = "";
+        if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
+            transformation = "AES/CBC/PKCS5PADDING";
+        } else if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
+            transformation = "AES/GCM/NOPADDING";
+        } else {
+            // at this point no valid encryptionAlgorithm was found
+            Log.e(TAG, "no valid encryptionAlgorithm found, aborted");
+            return null;
+        }
 
         // get the private key from AndroidKeystore
         KeyStore ks = null;
@@ -138,18 +161,30 @@ public class EcdhEncryption {
         // get the encryption key with hkdf
         byte[] randomSalt32Byte = generateRandomNumber(32);
         byte[] pseudoRandomKey;
-        HKDF hkdf = HKDF.fromHmacSha256();
         pseudoRandomKey = hkdf.extract(randomSalt32Byte, sharedSecret);
         //create expanded bytes for e.g. AES secret key and IV
         byte[] encryptionKey = hkdf.expand(pseudoRandomKey, HKDF_KEY.getBytes(StandardCharsets.UTF_8), 32);
 
-        EcdhModel ecdhModel = encryptAes(encryptionAlgorithm, senderKeyId, recipientKeyId, randomSalt32Byte, HKDF_KEY, encryptionKey, dataToEncrypt);
+        EcdhModel ecdhModel = encryptAes(deriveAlgorithm, encryptionAlgorithm, transformation, senderKeyId, recipientKeyId, randomSalt32Byte, HKDF_KEY, encryptionKey, dataToEncrypt);
         return ecdhModel;
     }
 
     public static byte[] decryptData(EcdhModel encryptedData, PublicKey senderPublicKey) {
         // todo sanity checks
         // todo remote public key = "EC", keyParameter allowed, encryptionAlgorithm allowed, dataToEncrypt != null
+
+        // encryptionAlgorithm
+        String transformation = "";
+        if (encryptedData.getEncryptionAlgorithm().equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
+            transformation = "AES/CBC/PKCS5PADDING";
+        } else if (encryptedData.getEncryptionAlgorithm().equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
+            transformation = "AES/GCM/NOPADDING";
+        } else {
+            // at this point no valid encryptionAlgorithm was found
+            Log.e(TAG, "no valid encryptionAlgorithm found, aborted");
+            return null;
+        }
+
 
         // todo get the private key from keyId lookup
 
@@ -192,15 +227,15 @@ public class EcdhEncryption {
         byte[] ciphertext = base64Decoding(encryptedData.getCiphertextBase64());
         System.out.println("*** encKey: " + MainActivity.bytesToHexNpe(encryptionKey));
 
-        byte[] decryptedData = decryptAes(encryptedData.getEncryptionAlgorithm(), "alias", encryptionKey, initVector, ciphertext);
+        byte[] decryptedData = decryptAes(encryptedData.getEncryptionAlgorithm(), transformation,"alias", encryptionKey, initVector, ciphertext);
         return decryptedData;
     }
 
 
-    public static EcdhModel encryptAes(String encryptionAlgorithm, String alias, String aliasRecipient, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
+    public static EcdhModel encryptAes(String deriveAlgorithm, String encryptionAlgorithm, String transformation, String alias, String aliasRecipient, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
         // todo check for encryptionAlgorithm allowed, nulled key + data
         //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
-        String encAlgorithm = "AES/CBC/PKCS5PADDING";
+        //String encAlgorithm = "AES/CBC/PKCS5PADDING";
         // todo cases CBC or GCM
         byte[] initVector = generateRandomNumber(16);
         byte[] ciphertext;
@@ -208,7 +243,7 @@ public class EcdhEncryption {
         key = new SecretKeySpec(encryptionKey, "AES"); //AES-256 key
         Cipher cipher = null;
         try {
-            cipher = Cipher.getInstance(encAlgorithm);
+            cipher = Cipher.getInstance(transformation);
             cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(initVector));
             ciphertext = cipher.doFinal(data);
         } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
@@ -219,23 +254,23 @@ public class EcdhEncryption {
         }
         // build the return model
         //return new EcdhModel(alias, base64EncodingNpe(deriveSalt), deriveName, encryptionAlgorithm, base64EncodingNpe(initVector), base64EncodingNpe(ciphertext));
-        return new EcdhModel(aliasRecipient, base64EncodingNpe(deriveSalt), deriveName, encryptionAlgorithm, base64EncodingNpe(initVector), base64EncodingNpe(ciphertext));
+        return new EcdhModel(aliasRecipient, base64EncodingNpe(deriveSalt), deriveName, deriveAlgorithm, encryptionAlgorithm, base64EncodingNpe(initVector), base64EncodingNpe(ciphertext));
     }
 
-    public static byte[] decryptAes(String encryptionAlgorithm, String alias, byte[] encryptionKey, byte[] initVector, byte[] ciphertext) {
+    public static byte[] decryptAes(String encryptionAlgorithm, String transformation, String alias, byte[] encryptionKey, byte[] initVector, byte[] ciphertext) {
     //public static byte[] decryptAes(EcdhModel encryptedData, PrivateKey recipientPrivateKey, PublicKey senderPublicKey) {
         // todo get the private key by the keyId
 
         // todo check for encryptionAlgorithm allowed, nulled key + data
         //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
-        String encAlgorithm = "AES/CBC/PKCS5PADDING";
+        //String encAlgorithm = "AES/CBC/PKCS5PADDING";
         // todo cases CBC or GCM
         byte[] decryptedData;
         SecretKey key;
         key = new SecretKeySpec(encryptionKey, "AES"); //AES-256 key
         Cipher cipher = null;
         try {
-            cipher = Cipher.getInstance(encAlgorithm);
+            cipher = Cipher.getInstance(transformation);
             cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(initVector));
             decryptedData = cipher.doFinal(ciphertext);
         } catch (NoSuchAlgorithmException | IllegalBlockSizeException |

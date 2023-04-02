@@ -39,11 +39,14 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import de.androidcrypto.eccryptography.model.EcdhModel;
+import de.androidcrypto.eccryptography.model.PublicKeyModel;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainAct";
 
-    Button btn2, btn3, btn4, btn5, btn6, btn7;
+    Button btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9;
     TextView tv2;
 
     private static final String EC_SPEC_P256 = "p-256";
@@ -74,6 +77,8 @@ public class MainActivity extends AppCompatActivity {
         btn5 = findViewById(R.id.btn5);
         btn6 = findViewById(R.id.btn6);
         btn7 = findViewById(R.id.btn7);
+        btn8 = findViewById(R.id.btn8);
+        btn9 = findViewById(R.id.btn9);
         tv2 = findViewById(R.id.tv2);
 
         btn2.setOnClickListener(new View.OnClickListener() {
@@ -307,6 +312,33 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        btn8.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Log.d(TAG, "btn8");
+                StringBuilder sb = new StringBuilder();
+                // step 1 generate key pairs
+                String uuid1 = EcdhEncryption.generateUuid();
+                sb.append("generate EC key 1 with UUID: ").append(uuid1).append("\n");
+                PublicKeyModel pk1 = EcdhEncryption.generateEcKey(uuid1, PublicKeyModel.KEY_PARAMETER.P_256.toString());
+                sb.append("publicKey 1:").append("\n").append(pk1.dump()).append("\n");
+                String uuid2 = EcdhEncryption.generateUuid();
+                sb.append("generate EC key 2 with UUID: ").append(uuid2).append("\n");
+                PublicKeyModel pk2 = EcdhEncryption.generateEcKey(uuid2, PublicKeyModel.KEY_PARAMETER.P_256.toString());
+                sb.append("publicKey 2:").append("\n").append(pk2.dump()).append("\n");
+
+                String dataToEncryptString = "The quick fox";
+                sb.append("=== Encryption ===").append("\n");
+                sb.append("plaintext: ").append(dataToEncryptString).append("\n");
+                byte[] dataToEncrypt = dataToEncryptString.getBytes(StandardCharsets.UTF_8);
+                EcdhModel ecdhCiphertext = EcdhEncryption.encryptData(uuid1, pk2, EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString(), dataToEncrypt);
+                if (ecdhCiphertext != null) {
+                    sb.append("encryptedData:").append("\n").append(ecdhCiphertext.dump()).append("\n");
+                }
+
+                tv2.setText(sb.toString());
+            }
+        });
 
     }
 

@@ -23,6 +23,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
+import java.security.ProviderException;
 import java.security.PublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.text.DateFormat;
@@ -40,16 +41,14 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final String TAG = "MainAct";
+    private static final String TAG = "MainAct";
 
     Button btn1, btn2, btn3, btn4, btn5, btn6, btn7;
     TextView tv1, tv2;
     EditText et1;
 
-    private static final String EC_SPEC = "p-256";
-    private static final String KEY_PAIR_NAME = "abcdefgh";
-    private static final String MAC_ALG = "HMACSHA256";
-    private static final String INFO_TAG = "ECDH p-256 AES-256-GCM-SIV\0";
+    private static final String EC_SPEC_P256 = "p-256";
+    private static final String EC_SPEC_P521 = "p-521";
     private static final String KEY_AGREEMENT_ALG = "ECDH";
     private static final String KEY_STORE_PROVIDER = "AndroidKeyStore";
     KeyPair one;
@@ -97,8 +96,12 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "btn2");
                 // generate key pairs
                 try {
-                    one = generateKeys("alias_one");
-                    two = generateKeys("alias_two");
+                    // try with curve P-256
+                    one = generateKeysP256("alias_one");
+                    two = generateKeysP521("alias_two");
+                    // try with curve P-521
+                    // one = generateKeysP521("alias_one");
+                    // two = generateKeysP521("alias_two");
                 } catch (NoSuchAlgorithmException | NoSuchProviderException |
                          InvalidAlgorithmParameterException | ParseException e) {
                     throw new RuntimeException(e);
@@ -124,13 +127,20 @@ public class MainActivity extends AppCompatActivity {
                     shareTwo = sharedSecret(two.getPrivate(), one.getPublic());
                 } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchProviderException e) {
                     throw new RuntimeException(e);
+                } catch (NullPointerException e) {
+                    tv2.setText("please generate a key pair first");
+                    return;
                 }
-                StringBuilder sb = new StringBuilder();
-                sb.append("shared secret one").append("\n");
-                sb.append("shared key length: ").append(shareOne.length).append(" data: ").append(bytesToHexNpe(shareOne)).append("\n");
-                sb.append("shared secret two").append("\n");
-                sb.append("shared key length: ").append(shareOne.length).append(" data: ").append(bytesToHexNpe(shareTwo)).append("\n");
-                tv2.setText(sb.toString());
+                try {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("shared secret one").append("\n");
+                    sb.append("shared key length: ").append(shareOne.length).append(" data: ").append(bytesToHexNpe(shareOne)).append("\n");
+                    sb.append("shared secret two").append("\n");
+                    sb.append("shared key length: ").append(shareOne.length).append(" data: ").append(bytesToHexNpe(shareTwo)).append("\n");
+                    tv2.setText(sb.toString());
+                } catch (NullPointerException e) {
+                    tv2.setText("Error in generating the shared secret");
+                }
             }
         });
 
@@ -152,8 +162,15 @@ public class MainActivity extends AppCompatActivity {
                 HKDF hkdf = HKDF.fromHmacSha256();
 
                 //extract the "raw" data to create output with concentrated entropy
-                byte[] pseudoRandomKeyOne = hkdf.extract(staticSalt32Byte, shareOne);
-                byte[] pseudoRandomKeyTwo = hkdf.extract(staticSalt32Byte, shareTwo);
+                byte[] pseudoRandomKeyOne;
+                byte[] pseudoRandomKeyTwo;
+                try {
+                    pseudoRandomKeyOne = hkdf.extract(staticSalt32Byte, shareOne);
+                    pseudoRandomKeyTwo = hkdf.extract(staticSalt32Byte, shareTwo);
+                } catch (IllegalArgumentException e) {
+                    tv2.setText("please generate the shared secret first");
+                    return;
+                }
 
                 //create expanded bytes for e.g. AES secret key and IV
                 expandedAesKeyOne = hkdf.expand(pseudoRandomKeyOne, "aes-key".getBytes(StandardCharsets.UTF_8), 32);
@@ -180,12 +197,26 @@ public class MainActivity extends AppCompatActivity {
         btn5.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Log.i(TAG, "btn5");
+                Log.i(TAG, "btn 5");
+                    tv2.setText("");
+            }
+        });
+
+        btn6.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Log.i(TAG, "btn6");
                 // encryption / decryption
                 //Example boilerplate encrypting a simple string with created key/iv
                 // encryption
                 plaintext = "my secret message".getBytes(StandardCharsets.UTF_8);
-                SecretKey keyOne = new SecretKeySpec(expandedAesKeyOne, "AES"); //AES-256 key
+                SecretKey keyOne;
+                try {
+                    keyOne = new SecretKeySpec(expandedAesKeyOne, "AES"); //AES-256 key
+                } catch (IllegalArgumentException e) {
+                    tv2.setText("please run HKDF first");
+                    return;
+                }
                 Cipher cipherOne = null;
                 try {
                     cipherOne = Cipher.getInstance("AES/CBC/PKCS5Padding");
@@ -197,7 +228,13 @@ public class MainActivity extends AppCompatActivity {
                     throw new RuntimeException(e);
                 }
                 // decryption
-                SecretKey keyTwo = new SecretKeySpec(expandedAesKeyTwo, "AES"); //AES-256 key
+                SecretKey keyTwo;
+                try {
+                    keyTwo = new SecretKeySpec(expandedAesKeyTwo, "AES"); //AES-256 key
+                } catch (IllegalArgumentException e) {
+                    tv2.setText("please run HKDF first");
+                    return;
+                }
                 Cipher cipherTwo = null;
                 try {
                     cipherTwo = Cipher.getInstance("AES/CBC/PKCS5Padding");
@@ -220,15 +257,21 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        btn6.setOnClickListener(new View.OnClickListener() {
+        btn7.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Log.i(TAG, "btn 6");
+                Log.i(TAG, "btn 7");
                 // encryption / decryption
                 //Example boilerplate encrypting a simple string with created key/iv
                 // encryption
                 plaintext = "my secret message".getBytes(StandardCharsets.UTF_8);
-                SecretKey keyOne = new SecretKeySpec(expandedAesKeyOne, "AES"); //AES-256 key
+                SecretKey keyOne;
+                try {
+                    keyOne = new SecretKeySpec(expandedAesKeyOne, "AES"); //AES-256 key
+                } catch (IllegalArgumentException e) {
+                    tv2.setText("please run HKDF first");
+                    return;
+                }
                 Cipher cipherOne = null;
                 try {
                     cipherOne = Cipher.getInstance("AES/GCM/NoPadding");
@@ -240,7 +283,13 @@ public class MainActivity extends AppCompatActivity {
                     throw new RuntimeException(e);
                 }
                 // decryption
-                SecretKey keyTwo = new SecretKeySpec(expandedAesKeyTwo, "AES"); //AES-256 key
+                SecretKey keyTwo;
+                try {
+                    keyTwo = new SecretKeySpec(expandedAesKeyTwo, "AES"); //AES-256 key
+                } catch (IllegalArgumentException e) {
+                    tv2.setText("please run HKDF first");
+                    return;
+                }
                 Cipher cipherTwo = null;
                 try {
                     cipherTwo = Cipher.getInstance("AES/GCM/NoPadding");
@@ -250,6 +299,8 @@ public class MainActivity extends AppCompatActivity {
                          BadPaddingException | NoSuchPaddingException |
                          InvalidAlgorithmParameterException | InvalidKeyException e) {
                     throw new RuntimeException(e);
+                } catch (IllegalArgumentException e) {
+
                 }
                 StringBuilder sb = new StringBuilder();
                 sb.append("AES/GCM/NoPadding").append("\n");
@@ -263,23 +314,31 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        btn7.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Log.i(TAG, "btn 7");
 
-            }
-        });
     }
 
-    public static KeyPair generateKeys(String alias) throws NoSuchAlgorithmException, NoSuchProviderException, InvalidAlgorithmParameterException, ParseException {
+    public static KeyPair generateKeysP256(String alias) throws NoSuchAlgorithmException, NoSuchProviderException, InvalidAlgorithmParameterException, ParseException {
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_EC, KEY_STORE_PROVIDER);
         keyPairGenerator.initialize(
                 new KeyGenParameterSpec.Builder(
                         alias,
                         KeyProperties.PURPOSE_AGREE_KEY)
-                        .setAlgorithmParameterSpec(new ECGenParameterSpec(EC_SPEC))
+                        .setAlgorithmParameterSpec(new ECGenParameterSpec(EC_SPEC_P256))
+                        .setUserAuthenticationRequired(false)
+                        .setKeyValidityEnd(DateFormat.getDateInstance().parse("Aug 1, 2199"))
+                        .build());
+        return keyPairGenerator.generateKeyPair();
+    }
+
+    public static KeyPair generateKeysP521(String alias) throws NoSuchAlgorithmException, NoSuchProviderException, InvalidAlgorithmParameterException, ParseException {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_EC, KEY_STORE_PROVIDER);
+        keyPairGenerator.initialize(
+                new KeyGenParameterSpec.Builder(
+                        alias,
+                        KeyProperties.PURPOSE_AGREE_KEY)
+                        .setAlgorithmParameterSpec(new ECGenParameterSpec(EC_SPEC_P521))
                         .setUserAuthenticationRequired(false)
                         .setKeyValidityEnd(DateFormat.getDateInstance().parse("Aug 1, 2199"))
                         .build());
@@ -287,11 +346,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public static byte[] sharedSecret(PrivateKey mine, PublicKey remote) throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException {
-        KeyAgreement keyAgreement = KeyAgreement.getInstance(KEY_AGREEMENT_ALG, KEY_STORE_PROVIDER);
-        //Line 55 here ↓ where error occurs
-        keyAgreement.init(mine);
-        keyAgreement.doPhase(remote, true);
-        return keyAgreement.generateSecret();
+        try {
+            KeyAgreement keyAgreement = KeyAgreement.getInstance(KEY_AGREEMENT_ALG, KEY_STORE_PROVIDER);
+            //Line 55 here ↓ where error occurs
+            keyAgreement.init(mine);
+            keyAgreement.doPhase(remote, true);
+            return keyAgreement.generateSecret();
+        } catch (ProviderException e) {
+            Log.e(TAG, "error on generating a shared secred)");
+            return null;
+        }
     }
 
     /**

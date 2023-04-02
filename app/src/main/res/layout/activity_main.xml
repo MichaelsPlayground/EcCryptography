@@ -21,7 +21,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="10dp"
-        android:text="Main menu"
+        android:text="EC cryptography using P-256 curve and HKDF as key derivation"
         android:textAlignment="center"
         android:textSize="20sp"
         android:textStyle="bold" />
@@ -123,7 +123,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginLeft="8dp"
                     android:layout_weight="1"
-                    android:text="encr / decr CBC" />
+                    android:text="empty" />
             </LinearLayout>
 
             <com.google.android.material.divider.MaterialDivider
@@ -146,7 +146,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginRight="8dp"
                     android:layout_weight="1"
-                    android:text="encr / decr GCM" />
+                    android:text="encr / decr CBC" />
 
                 <Button
                     android:id="@+id/btn7"
@@ -154,7 +154,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginLeft="8dp"
                     android:layout_weight="1"
-                    android:text="Button 7" />
+                    android:text="encr / decr GCM" />
             </LinearLayout>
 
             <com.google.android.material.divider.MaterialDivider

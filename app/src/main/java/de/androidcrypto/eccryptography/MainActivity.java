@@ -93,13 +93,16 @@ public class MainActivity extends AppCompatActivity {
                     throw new RuntimeException(e);
                 }
                 StringBuilder sb = new StringBuilder();
-                sb.append("Generated key pair one").append("\n");
-                sb.append("Private Key: ").append(bytesToHexNpe(one.getPrivate().getEncoded())).append("\n");
+                sb.append("Generated key pair one:").append("\n");
+                sb.append("Private Key: ").append("not exported from Android's keystore").append("\n");
+                //sb.append("Private Key: ").append(bytesToHexNpe(one.getPrivate().getEncoded())).append("\n");
                 sb.append("Public  Key: ").append(bytesToHexNpe(one.getPublic().getEncoded())).append("\n");
-                sb.append("Generated key pair two").append("\n");
-                sb.append("Private Key: ").append(bytesToHexNpe(two.getPrivate().getEncoded())).append("\n");
+                sb.append("Generated key pair two:").append("\n");
+                sb.append("Private Key: ").append("not exported from Android's keystore").append("\n");
+                //sb.append("Private Key: ").append(bytesToHexNpe(two.getPrivate().getEncoded())).append("\n");
                 sb.append("Public  Key: ").append(bytesToHexNpe(two.getPublic().getEncoded())).append("\n");
                 tv2.setText(sb.toString());
+                Log.d(TAG, "step 1 generate key pairs:\n" + sb.toString());
             }
         });
 
@@ -119,11 +122,12 @@ public class MainActivity extends AppCompatActivity {
                 }
                 try {
                     StringBuilder sb = new StringBuilder();
-                    sb.append("shared secret one").append("\n");
+                    sb.append("shared secret one:").append("\n");
                     sb.append("shared key length: ").append(shareOne.length).append(" data: ").append(bytesToHexNpe(shareOne)).append("\n");
-                    sb.append("shared secret two").append("\n");
+                    sb.append("shared secret two:").append("\n");
                     sb.append("shared key length: ").append(shareOne.length).append(" data: ").append(bytesToHexNpe(shareTwo)).append("\n");
                     tv2.setText(sb.toString());
+                    Log.d(TAG, "step 2 calculate the shared secrets:\n" + sb.toString());
                 } catch (NullPointerException e) {
                     tv2.setText("Error in generating the shared secret");
                 }
@@ -168,15 +172,16 @@ public class MainActivity extends AppCompatActivity {
                 expandedNonceTwo = hkdf.expand(pseudoRandomKeyTwo, "aes-nonce".getBytes(StandardCharsets.UTF_8), 12);
 
                 StringBuilder sb = new StringBuilder();
-                sb.append("HKDF one").append("\n");
+                sb.append("HKDF one:").append("\n");
                 sb.append("expandedAesKey length: ").append(expandedAesKeyOne.length).append(" data: ").append(bytesToHexNpe(expandedAesKeyOne)).append("\n");
                 sb.append("expandedIv     length: ").append(expandedIvOne.length).append(" data: ").append(bytesToHexNpe(expandedIvOne)).append("\n");
                 sb.append("expandedNonce  length: ").append(expandedNonceOne.length).append(" data: ").append(bytesToHexNpe(expandedNonceOne)).append("\n");
-                sb.append("HKDF two").append("\n");
+                sb.append("HKDF two:").append("\n");
                 sb.append("expandedAesKey length: ").append(expandedAesKeyTwo.length).append(" data: ").append(bytesToHexNpe(expandedAesKeyTwo)).append("\n");
                 sb.append("expandedIv     length: ").append(expandedIvTwo.length).append(" data: ").append(bytesToHexNpe(expandedIvTwo)).append("\n");
                 sb.append("expandedNonce  length: ").append(expandedNonceTwo.length).append(" data: ").append(bytesToHexNpe(expandedNonceTwo)).append("\n");
                 tv2.setText(sb.toString());
+                Log.d(TAG, "step 3 derive the encryption key using HKDF from shared secrets:\n" + sb.toString());
             }
         });
 
@@ -240,6 +245,7 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("decrypted length: ").append(decrypted.length).append(" data: ").append(bytesToHexNpe(decrypted)).append("\n");
                 sb.append("decrypted two: ").append(new String(decrypted)).append("\n");
                 tv2.setText(sb.toString());
+                Log.d(TAG, "step 4 encrypt and decrypt data with AES-CBC from HKDF derived keys:\n" + sb.toString());
             }
         });
 
@@ -297,6 +303,7 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("decrypted length: ").append(decrypted.length).append(" data: ").append(bytesToHexNpe(decrypted)).append("\n");
                 sb.append("decrypted two: ").append(new String(decrypted)).append("\n");
                 tv2.setText(sb.toString());
+                Log.d(TAG, "step 4 encrypt and decrypt data with AES-GCM from HKDF derived keys:\n" + sb.toString());
             }
         });
 

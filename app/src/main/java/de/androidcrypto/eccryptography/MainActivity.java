@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
+import android.text.TextUtils;
+import android.util.Base64;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -18,6 +20,7 @@ import androidx.appcompat.widget.Toolbar;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -25,7 +28,10 @@ import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.ProviderException;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.spec.ECGenParameterSpec;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.text.DateFormat;
 import java.text.ParseException;
 
@@ -194,7 +200,86 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Log.i(TAG, "btn 5");
-                    tv2.setText("");
+                tv2.setText("");
+
+                // manual work
+                // Generate ephemeral ECDH keypair
+                KeyPair kp1;
+                try {
+                    KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
+                    kpg.initialize(256);
+                    //kpg.initialize(521);
+                    //kpg.initialize(384);
+                    kp1 = kpg.generateKeyPair();
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
+                }
+
+                byte[] ourPriKey1 = kp1.getPrivate().getEncoded();
+                byte[] ourPubKey1 = kp1.getPublic().getEncoded();
+
+                KeyPair kp2;
+                try {
+                    KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
+                    kpg.initialize(256);
+                    kp2 = kpg.generateKeyPair();
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
+                }
+                byte[] remotePriKey2 = kp2.getPrivate().getEncoded();
+                byte[] remotePubKey2 = kp2.getPublic().getEncoded();
+
+                KeyFactory kf = null;
+                PublicKey remotePublicKey;
+                try {
+                    kf = KeyFactory.getInstance("EC");
+                    X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(remotePubKey2);
+                    remotePublicKey = kf.generatePublic(pkSpec);
+                } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                    throw new RuntimeException(e);
+                }
+                // Perform key agreement
+                KeyAgreement ka = null;
+                try {
+                    ka = KeyAgreement.getInstance("ECDH");
+                    ka.init(kp1.getPrivate());
+                    ka.doPhase(remotePublicKey, true);
+                } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                }
+                // Read shared secret
+                byte[] sharedSecret1 = ka.generateSecret();
+
+                // shared secret 2
+                KeyAgreement ka2= null;
+                try {
+                    ka2 = KeyAgreement.getInstance("ECDH");
+                    ka2.init(kp2.getPrivate());
+                    ka2.doPhase(kp1.getPublic(), true);
+                } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                }
+                // Read shared secret
+                byte[] sharedSecret2 = ka2.generateSecret();
+
+                // HKDF only for shared secret 1
+                // get the encryption key with hkdf
+                byte[] randomSalt32Byte = generateRandomNumber(32);
+                byte[] pseudoRandomKey;
+                //HKDF hkdf = HKDF.fromHmacSha512();
+                HKDF hkdf = HKDF.fromHmacSha256();
+                pseudoRandomKey = hkdf.extract(randomSalt32Byte, sharedSecret1);
+                //create expanded bytes for e.g. AES secret key and IV
+                byte[] encryptionKey1 = hkdf.expand(pseudoRandomKey, "aes-key".getBytes(StandardCharsets.UTF_8), 32);
+
+                StringBuilder sb = new StringBuilder();
+                sb.append("Manual ECDH").append("\n");
+                sb.append("PrivateKey 1: ").append(kp1.getPrivate().toString()).append(" Algorithm: ").append(kp1.getPrivate().getAlgorithm()).append("\n");
+                sb.append("PublicKey  2: ").append(kp2.getPublic().toString()).append("\n");
+                sb.append("Shared secret 1 length: ").append(sharedSecret1.length).append(" data: ").append(bytesToHexNpe(sharedSecret1)).append("\n");
+                sb.append("Shared secret 2 length: ").append(sharedSecret2.length).append(" data: ").append(bytesToHexNpe(sharedSecret2)).append("\n");
+                sb.append("encryptionKey 1 length: ").append(encryptionKey1.length).append(" data: ").append(bytesToHexNpe(encryptionKey1)).append("\n");
+                tv2.setText(sb.toString());
             }
         });
 
@@ -331,15 +416,53 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("=== Encryption ===").append("\n");
                 sb.append("plaintext: ").append(dataToEncryptString).append("\n");
                 byte[] dataToEncrypt = dataToEncryptString.getBytes(StandardCharsets.UTF_8);
-                EcdhModel ecdhCiphertext = EcdhEncryption.encryptData(uuid1, pk2, EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString(), dataToEncrypt);
+                EcdhModel ecdhCiphertext = EcdhEncryption.encryptData(uuid1, uuid2, pk2, EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString(), dataToEncrypt);
                 if (ecdhCiphertext != null) {
                     sb.append("encryptedData:").append("\n").append(ecdhCiphertext.dump()).append("\n");
+                }
+                sb.append("").append("\n");
+                sb.append("=== Decryption ===").append("\n");
+
+                KeyFactory kf = null;
+                PublicKey senderPubKey;
+                byte[] encodedSenderPublicKey = base64Decoding(pk1.getKeyEncodedBase64());
+                try {
+                    kf = KeyFactory.getInstance("EC");
+                    senderPubKey = (PublicKey) kf.generatePublic(new X509EncodedKeySpec(encodedSenderPublicKey));
+                } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                    //throw new RuntimeException(e);
+                    Log.e(TAG, "Exception: " + e.getMessage());
+                    return;
+                }
+                byte[] decryptedData = EcdhEncryption.decryptData(ecdhCiphertext, senderPubKey);
+                if (decryptedData != null) {
+                    sb.append("decryptedData: ").append(new String(decryptedData)).append("\n");
+                } else {
+                    sb.append("Error on decryption").append("\n");
                 }
 
                 tv2.setText(sb.toString());
             }
         });
 
+    }
+
+    private static byte[] generateRandomNumber(int length) {
+        if (length < 1) return null;
+        byte[] number = new byte[length];
+        SecureRandom secureRandom = new SecureRandom();
+        secureRandom.nextBytes(number);
+        return number;
+    }
+
+    private static String base64EncodingNpe(byte[] input) {
+        if (input == null) return null;
+        return Base64.encodeToString(input, Base64.NO_WRAP);
+    }
+
+    private static byte[] base64Decoding(String input) {
+        if (TextUtils.isEmpty(input)) return null;
+        return Base64.decode(input, Base64.NO_WRAP);
     }
 
     public static KeyPair generateKeysP256(String alias) throws NoSuchAlgorithmException, NoSuchProviderException, InvalidAlgorithmParameterException, ParseException {

@@ -98,7 +98,7 @@ public class EcdhEncryption {
     }
 
     //EcdhModel ecdhCiphertext = EcdhEncryption.encryptData(keyId, remotePublicKey, EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING, dataToEncrypt);
-    public static EcdhModel encryptData(String keyId, PublicKeyModel remotePublicKey, String encryptionAlgorithm, byte[] dataToEncrypt) {
+    public static EcdhModel encryptData(String senderKeyId, String recipientKeyId,  PublicKeyModel remotePublicKey, String encryptionAlgorithm, byte[] dataToEncrypt) {
         // todo sanity checks
         // todo remote public key = "EC", keyParameter allowed, encryptionAlgorithm allowed, dataToEncrypt != null
 
@@ -108,7 +108,7 @@ public class EcdhEncryption {
         try {
             ks = KeyStore.getInstance(KEY_STORE_PROVIDER);
             ks.load(null);
-            entry = ks.getEntry(keyId, null);
+            entry = ks.getEntry(senderKeyId, null);
             if (!(entry instanceof KeyStore.PrivateKeyEntry)) {
                 Log.w(TAG, "Not an instance of a PrivateKeyEntry");
                 return null;
@@ -143,14 +143,61 @@ public class EcdhEncryption {
         //create expanded bytes for e.g. AES secret key and IV
         byte[] encryptionKey = hkdf.expand(pseudoRandomKey, HKDF_KEY.getBytes(StandardCharsets.UTF_8), 32);
 
-        EcdhModel ecdhModel = encryptAes(encryptionAlgorithm, keyId, randomSalt32Byte, HKDF_KEY, encryptionKey, dataToEncrypt);
+        EcdhModel ecdhModel = encryptAes(encryptionAlgorithm, senderKeyId, recipientKeyId, randomSalt32Byte, HKDF_KEY, encryptionKey, dataToEncrypt);
         return ecdhModel;
     }
 
+    public static byte[] decryptData(EcdhModel encryptedData, PublicKey senderPublicKey) {
+        // todo sanity checks
+        // todo remote public key = "EC", keyParameter allowed, encryptionAlgorithm allowed, dataToEncrypt != null
+
+        // todo get the private key from keyId lookup
+
+        // get the private key from AndroidKeystore
+        KeyStore ks = null;
+        KeyStore.Entry entry;
+        String keyAlias = encryptedData.getKeyId();
+        try {
+            ks = KeyStore.getInstance(KEY_STORE_PROVIDER);
+            ks.load(null);
+            entry = ks.getEntry(keyAlias, null);
+            if (!(entry instanceof KeyStore.PrivateKeyEntry)) {
+                Log.w(TAG, "Not an instance of a PrivateKeyEntry");
+                return null;
+            }
+        } catch (KeyStoreException | UnrecoverableEntryException | CertificateException |
+                 IOException | NoSuchAlgorithmException e) {
+            //throw new RuntimeException(e);
+            Log.e(TAG, "Exception: " + e.getMessage());
+            return null;
+        }
+        PrivateKey recipientPrivateKey = ((KeyStore.PrivateKeyEntry) entry).getPrivateKey();
+        System.out.println("*** found recipientPrivateKey");
+        // get public key
+
+        // derive the sharedSecret
+        byte[] sharedSecret = sharedSecretEc(recipientPrivateKey, senderPublicKey);
+        System.out.println("*** sharedSecret: " + MainActivity.bytesToHexNpe(sharedSecret));
+
+        // get the encryption key with hkdf
+        //byte[] randomSalt32Byte = generateRandomNumber(32);
+        byte[] randomSalt32Byte = base64Decoding(encryptedData.getDeriveSaltBase64());
+        byte[] pseudoRandomKey;
+        HKDF hkdf = HKDF.fromHmacSha256();
+        pseudoRandomKey = hkdf.extract(randomSalt32Byte, sharedSecret);
+        //create expanded bytes for e.g. AES secret key and IV
+        //byte[] encryptionKey = hkdf.expand(pseudoRandomKey, HKDF_KEY.getBytes(StandardCharsets.UTF_8), 32);
+        byte[] encryptionKey = hkdf.expand(pseudoRandomKey, encryptedData.getDeriveName().getBytes(StandardCharsets.UTF_8), 32);
+        byte[] initVector = base64Decoding(encryptedData.getIvBase64());
+        byte[] ciphertext = base64Decoding(encryptedData.getCiphertextBase64());
+        System.out.println("*** encKey: " + MainActivity.bytesToHexNpe(encryptionKey));
+
+        byte[] decryptedData = decryptAes(encryptedData.getEncryptionAlgorithm(), "alias", encryptionKey, initVector, ciphertext);
+        return decryptedData;
+    }
 
 
-
-    public static EcdhModel encryptAes(String encryptionAlgorithm, String alias, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
+    public static EcdhModel encryptAes(String encryptionAlgorithm, String alias, String aliasRecipient, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
         // todo check for encryptionAlgorithm allowed, nulled key + data
         //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
         String encAlgorithm = "AES/CBC/PKCS5PADDING";
@@ -171,9 +218,36 @@ public class EcdhEncryption {
             return null;
         }
         // build the return model
-        return new EcdhModel(alias, base64EncodingNpe(deriveSalt), deriveName, encryptionAlgorithm, base64EncodingNpe(initVector), base64EncodingNpe(ciphertext));
+        //return new EcdhModel(alias, base64EncodingNpe(deriveSalt), deriveName, encryptionAlgorithm, base64EncodingNpe(initVector), base64EncodingNpe(ciphertext));
+        return new EcdhModel(aliasRecipient, base64EncodingNpe(deriveSalt), deriveName, encryptionAlgorithm, base64EncodingNpe(initVector), base64EncodingNpe(ciphertext));
     }
 
+    public static byte[] decryptAes(String encryptionAlgorithm, String alias, byte[] encryptionKey, byte[] initVector, byte[] ciphertext) {
+    //public static byte[] decryptAes(EcdhModel encryptedData, PrivateKey recipientPrivateKey, PublicKey senderPublicKey) {
+        // todo get the private key by the keyId
+
+        // todo check for encryptionAlgorithm allowed, nulled key + data
+        //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
+        String encAlgorithm = "AES/CBC/PKCS5PADDING";
+        // todo cases CBC or GCM
+        byte[] decryptedData;
+        SecretKey key;
+        key = new SecretKeySpec(encryptionKey, "AES"); //AES-256 key
+        Cipher cipher = null;
+        try {
+            cipher = Cipher.getInstance(encAlgorithm);
+            cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(initVector));
+            decryptedData = cipher.doFinal(ciphertext);
+        } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
+                 BadPaddingException | NoSuchPaddingException |
+                 InvalidAlgorithmParameterException | InvalidKeyException e) {
+            //throw new RuntimeException(e);
+            System.out.println("** Exception: " + e.getMessage());
+            return null;
+        }
+        // build the return model
+        return decryptedData;
+    }
     private static byte[] generateRandomNumber(int length) {
         if (length < 1) return null;
         byte[] number = new byte[length];

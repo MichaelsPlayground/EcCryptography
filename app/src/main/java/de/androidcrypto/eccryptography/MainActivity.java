@@ -43,9 +43,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainAct";
 
-    Button btn1, btn2, btn3, btn4, btn5, btn6, btn7;
-    TextView tv1, tv2;
-    EditText et1;
+    Button btn2, btn3, btn4, btn5, btn6, btn7;
+    TextView tv2;
 
     private static final String EC_SPEC_P256 = "p-256";
     private static final String EC_SPEC_P521 = "p-521";
@@ -69,26 +68,13 @@ public class MainActivity extends AppCompatActivity {
         Toolbar myToolbar = (Toolbar) findViewById(R.id.main_toolbar);
         setSupportActionBar(myToolbar);
 
-        btn1 = findViewById(R.id.btn1);
         btn2 = findViewById(R.id.btn2);
         btn3 = findViewById(R.id.btn3);
         btn4 = findViewById(R.id.btn4);
         btn5 = findViewById(R.id.btn5);
         btn6 = findViewById(R.id.btn6);
         btn7 = findViewById(R.id.btn7);
-        tv1 = findViewById(R.id.tv1);
         tv2 = findViewById(R.id.tv2);
-        et1 = findViewById(R.id.et1);
-
-        btn1.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Log.i(TAG, "btn1 back to main menu");
-                Intent intent = new Intent(MainActivity.this, MainActivity.class);
-                startActivity(intent);
-                finish();
-            }
-        });
 
         btn2.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -98,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     // try with curve P-256
                     one = generateKeysP256("alias_one");
-                    two = generateKeysP521("alias_two");
+                    two = generateKeysP256("alias_two");
                     // try with curve P-521
                     // one = generateKeysP521("alias_one");
                     // two = generateKeysP521("alias_two");

@@ -416,7 +416,8 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("=== Encryption ===").append("\n");
                 sb.append("plaintext: ").append(dataToEncryptString).append("\n");
                 byte[] dataToEncrypt = dataToEncryptString.getBytes(StandardCharsets.UTF_8);
-                EcdhModel ecdhCiphertext = EcdhEncryption.encryptData(uuid1, uuid2, pk2, EcdhModel.HKDF_ALGORITHM.HMAC_SHA256.toString() , EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString(), dataToEncrypt);
+                //EcdhModel ecdhCiphertext = EcdhEncryption.encryptData(uuid1, uuid2, pk2, EcdhModel.HKDF_ALGORITHM.HMAC_SHA256.toString() , EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString(), dataToEncrypt);
+                EcdhModel ecdhCiphertext = EcdhEncryption.encryptData(uuid1, uuid2, pk2, EcdhModel.HKDF_ALGORITHM.HMAC_SHA512.toString() , EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString(), dataToEncrypt);
                 if (ecdhCiphertext != null) {
                     sb.append("encryptedData:").append("\n").append(ecdhCiphertext.dump()).append("\n");
                 }

@@ -36,6 +36,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -173,6 +174,18 @@ public class EcdhEncryption {
         // todo sanity checks
         // todo remote public key = "EC", keyParameter allowed, encryptionAlgorithm allowed, dataToEncrypt != null
 
+        // deriveAlgorithm
+        HKDF hkdf = null;
+        if (encryptedData.getDeriveAlgorithm().equals(EcdhModel.HKDF_ALGORITHM.HMAC_SHA256.toString())) {
+            hkdf = HKDF.fromHmacSha256();
+        } else if (encryptedData.getDeriveAlgorithm().equals(EcdhModel.HKDF_ALGORITHM.HMAC_SHA512.toString())) {
+            hkdf = HKDF.fromHmacSha512();
+        } else {
+            // at this pint no valid deriveAlgorithm was found
+            Log.e(TAG, "no valid deriveAlgorithm found, aborted");
+            return null;
+        }
+
         // encryptionAlgorithm
         String transformation = "";
         if (encryptedData.getEncryptionAlgorithm().equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
@@ -218,7 +231,7 @@ public class EcdhEncryption {
         //byte[] randomSalt32Byte = generateRandomNumber(32);
         byte[] randomSalt32Byte = base64Decoding(encryptedData.getDeriveSaltBase64());
         byte[] pseudoRandomKey;
-        HKDF hkdf = HKDF.fromHmacSha256();
+        //HKDF hkdf = HKDF.fromHmacSha256();
         pseudoRandomKey = hkdf.extract(randomSalt32Byte, sharedSecret);
         //create expanded bytes for e.g. AES secret key and IV
         //byte[] encryptionKey = hkdf.expand(pseudoRandomKey, HKDF_KEY.getBytes(StandardCharsets.UTF_8), 32);
@@ -237,14 +250,20 @@ public class EcdhEncryption {
         //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
         //String encAlgorithm = "AES/CBC/PKCS5PADDING";
         // todo cases CBC or GCM
-        byte[] initVector = generateRandomNumber(16);
+        byte[] initVector = new byte[0];
         byte[] ciphertext;
         SecretKey key;
         key = new SecretKeySpec(encryptionKey, "AES"); //AES-256 key
         Cipher cipher = null;
         try {
             cipher = Cipher.getInstance(transformation);
-            cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(initVector));
+            if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
+                initVector = generateRandomNumber(16);
+                cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(initVector));
+            } else if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
+                initVector = generateRandomNumber(12);
+                cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(16, initVector));
+            }
             ciphertext = cipher.doFinal(data);
         } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
                  BadPaddingException | NoSuchPaddingException |
@@ -271,7 +290,11 @@ public class EcdhEncryption {
         Cipher cipher = null;
         try {
             cipher = Cipher.getInstance(transformation);
-            cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(initVector));
+            if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
+                cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(initVector));
+            } else if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
+                cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(16, initVector));
+            }
             decryptedData = cipher.doFinal(ciphertext);
         } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
                  BadPaddingException | NoSuchPaddingException |

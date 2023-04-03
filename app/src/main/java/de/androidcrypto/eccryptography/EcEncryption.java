@@ -289,7 +289,15 @@ public class EcEncryption {
             return null;
         }
 
-        // todo check that the presented keys do have the same keyId as the one in encryptionModel
+        // check that the presented keys do have the same keyId as the ones in encryptionModel
+        if (!privateKeyModel.getKeyId().equals(encryptionModel.getRecipientKeyId())) {
+            Log.e(TAG, "the keyId in the Private Key Model does not match the recipientKeyId in encryptedModel, aborted");
+            return null;
+        }
+        if (!remotePublicKeyModel.getKeyId().equals(encryptionModel.getSenderKeyId())) {
+            Log.e(TAG, "the keyId in the remote Public Key Model does not match the senderKeyId in encryptedModel, aborted");
+            return null;
+        }
 
         // derive the encryption key
         byte[] encryptionKey = getEncryptionKeyHkdf(

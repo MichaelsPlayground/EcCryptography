@@ -201,9 +201,7 @@ public class EcEncryption {
             Log.d(TAG, "encryption model is NULL, aborted");
             return null;
         }
-/*
-Thanks for clarification and giving more data to us. Regarding your use case "emulate a string to an NFC reader". You do have two choices: a) **transfer only the string**: for this you need a specific app that is running on NFC reader side to decode the data. If the NFC reader is an IOS device you will not get the data as Apple does not allow to get the "raw" data from the NFC reader. b) **build an NDEF message and emulate a card holding this NDEF message**: that way most of the readers will detect the NDEF message and display it with an app available for the chosen NDEF message type (e.g. if the message type is of "URI" a browser will try to display and "read" the URI/URL. The second way b) is used in the linked repository (see comment from @Andrew).
- */
+
         // check if senderPublicKeyBase is present, if yes we are running in ECDHE mode
         String senderPublicKeyBase64 = encryptionModel.getSenderPublicKeyBase64();
         if (!TextUtils.isEmpty(senderPublicKeyBase64)) {

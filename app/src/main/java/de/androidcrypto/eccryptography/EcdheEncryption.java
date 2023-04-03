@@ -153,7 +153,7 @@ public class EcdheEncryption {
         PrivateKey privateKey = ((KeyStore.PrivateKeyEntry) entry).getPrivateKey();
         PublicKey senderPublicKey = ((KeyStore.PrivateKeyEntry) entry).getCertificate().getPublicKey();
         // get public key
-        byte[] encodedPublicKey = base64Decoding(remotePublicKey.getKeyEncodedBase64());
+        byte[] encodedPublicKey = base64Decoding(remotePublicKey.getPublicKeyEncodedBase64());
         KeyFactory kf = null;
         PublicKey remotePubKey;
         try {

@@ -52,6 +52,7 @@ import de.androidcrypto.eccryptography.model.PublicKeyModel;
 public class EcEncryption {
 
     private static final String TAG = "EcEncryption";
+    private static final String HKDF_AES_KEY = "aes-key";
 
     /**
      * encapsulated methods
@@ -97,21 +98,82 @@ public class EcEncryption {
         );
     }
 
-    public static EncryptionModel ecdhEncryption(PrivateKeyModel privateKeyModel, PublicKeyModel remotePublicKey, HKDF_ALGORITHM hkdf_algorithm, ENCRYPTION_ALGORITHM encryptionAlgorithm, byte[] dataToEncrypt) {
+    public static EncryptionModel ecdhEncryption(PrivateKeyModel privateKeyModel, PublicKeyModel remotePublicKeyModel, HKDF_ALGORITHM hkdf_algorithm, ENCRYPTION_ALGORITHM encryptionAlgorithm, byte[] dataToEncrypt) {
         if (privateKeyModel == null) {
             Log.d(TAG, "privateKeyModel is NULL, aborted");
             return null;
         }
-        if (remotePublicKey == null) {
+        if (remotePublicKeyModel == null) {
             Log.d(TAG, "remotePublicModel is NULL, aborted");
             return null;
         }
+        if (dataToEncrypt == null) {
+            Log.d(TAG, "dataToEncrypt is NULL, aborted");
+            return null;
+        }
+        // check that keyParameter and keyType are equals for private and public key
+        if (!privateKeyModel.getKeyParameter().equals(remotePublicKeyModel.getKeyParameter())) {
+            Log.d(TAG, "the key parameter are not equals in PrivateKeyModel and PublicKeyModel, aborted");
+            return null;
+        }
+        if (!privateKeyModel.getKeyType().equals(remotePublicKeyModel.getKeyType())) {
+            Log.d(TAG, "the key type are not equals in PrivateKeyModel and PublicKeyModel, aborted");
+            return null;
+        }
 
+        // get shared secret
+        // private key
+        PrivateKey privateKey = getPrivateKeyFromEncoded(base64Decoding(privateKeyModel.getPrivateKeyEncodedBase64()));
+        PublicKey remotePublicKey = getPublicKeyFromEncoded(base64Decoding(remotePublicKeyModel.getPublicKeyEncodedBase64()));
+        if (privateKey == null) {
+            Log.e(TAG, "could not retrieve the Private Key, aborted");
+            return null;
+        }
+        if (remotePublicKey == null) {
+            Log.e(TAG, "could not retrieve the remote Public Key, aborted");
+            return null;
+        }
+        byte[] sharedSecret = getEcdhSharedSecret(privateKey, remotePublicKey);
+        if (sharedSecret == null) {
+            Log.e(TAG, "could not calculate the shared secret, aborted");
+            return null;
+        }
 
+        // derive the encryption key
+        byte[][] encryptionKeyArray = deriveEncryptionKeyHkdf(hkdf_algorithm, HKDF_NAME.AES_KEY, sharedSecret);
 
-        // check that keyParameter and type are equals fro pri + pub
-        return null;
+        // encryptionTransformation
+        String transformation = "";
+        if (encryptionAlgorithm == ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING) {
+            transformation = "AES/CBC/PKCS5PADDING";
+        } else if (encryptionAlgorithm == ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING) {
+            transformation = "AES/GCM/NOPADDING";
+        } else {
+            // at this point no valid encryptionAlgorithm was found
+            Log.e(TAG, "no valid encryptionAlgorithm found, aborted");
+            return null;
+        }
+
+        // run the encryption
+        EncryptionModel encryptionModel = encryptAesInternal(
+                HKDF_ALGORITHM.HMAC_SHA256.toString(),
+                encryptionAlgorithm.toString(),
+                transformation,
+                privateKeyModel.getKeyId(),
+                remotePublicKeyModel.getKeyId(),
+                encryptionKeyArray[1], // derive salt
+                EcEncryption.HKDF_NAME.AES_KEY.toString(),
+                encryptionKeyArray[0],
+                dataToEncrypt
+        );
+        if (encryptionModel == null) {
+            Log.e(TAG, "Error during encryption");
+            return null;
+        }
+        Log.d(TAG, "the data was encrypted");
+        return encryptionModel;
     }
+    /*
     public static EncryptionModel ecdhEncryption(String senderKeyId, String recipientKeyId, PublicKeyModel remotePublicKey, String deriveAlgorithm, String encryptionAlgorithm, byte[] dataToEncrypt) {
         // todo sanity checks
         // todo remote public key = "EC", keyParameter allowed, encryptionAlgorithm allowed, dataToEncrypt != null
@@ -158,7 +220,7 @@ public class EcEncryption {
         }
         PrivateKey privateKey = ((KeyStore.PrivateKeyEntry) entry).getPrivateKey();
         // get public key
-        byte[] encodedPublicKey = base64Decoding(remotePublicKey.getKeyEncodedBase64());
+        byte[] encodedPublicKey = base64Decoding(remotePublicKey.getPublicKeyEncodedBase64());
         KeyFactory kf = null;
         PublicKey remotePubKey;
         try {
@@ -183,7 +245,87 @@ public class EcEncryption {
         EncryptionModel ecdhModel = encryptAes(deriveAlgorithm, encryptionAlgorithm, transformation, senderKeyId, recipientKeyId, randomSalt32Byte, HKDF_KEY, encryptionKey, dataToEncrypt);
         return ecdhModel;
     }
+*/
 
+    public static byte[] ecdhDecryption(PrivateKeyModel privateKeyModel, PublicKeyModel remotePublicKeyModel, EncryptionModel encryptionModel) {
+        if (privateKeyModel == null) {
+            Log.d(TAG, "privateKeyModel is NULL, aborted");
+            return null;
+        }
+        if (remotePublicKeyModel == null) {
+            Log.d(TAG, "remotePublicModel is NULL, aborted");
+            return null;
+        }
+        if (encryptionModel == null) {
+            Log.d(TAG, "encryption model is NULL, aborted");
+            return null;
+        }
+
+        // check that keyParameter and keyType are equals for private and public key
+        if (!privateKeyModel.getKeyParameter().equals(remotePublicKeyModel.getKeyParameter())) {
+            Log.d(TAG, "the key parameter are not equals in PrivateKeyModel and PublicKeyModel, aborted");
+            return null;
+        }
+        if (!privateKeyModel.getKeyType().equals(remotePublicKeyModel.getKeyType())) {
+            Log.d(TAG, "the key type are not equals in PrivateKeyModel and PublicKeyModel, aborted");
+            return null;
+        }
+
+        // get shared secret
+        // private key
+        PrivateKey privateKey = getPrivateKeyFromEncoded(base64Decoding(privateKeyModel.getPrivateKeyEncodedBase64()));
+        PublicKey remotePublicKey = getPublicKeyFromEncoded(base64Decoding(remotePublicKeyModel.getPublicKeyEncodedBase64()));
+        if (privateKey == null) {
+            Log.e(TAG, "could not retrieve the Private Key, aborted");
+            return null;
+        }
+        if (remotePublicKey == null) {
+            Log.e(TAG, "could not retrieve the remote Public Key, aborted");
+            return null;
+        }
+        byte[] sharedSecret = getEcdhSharedSecret(privateKey, remotePublicKey);
+        if (sharedSecret == null) {
+            Log.e(TAG, "could not calculate the shared secret, aborted");
+            return null;
+        }
+
+        // todo check that the presented keys do have the same keyId as the one in encryptionModel
+
+        // derive the encryption key
+        byte[] encryptionKey = getEncryptionKeyHkdf(
+                encryptionModel.getDeriveAlgorithm(),
+                HKDF_NAME.AES_KEY,
+                sharedSecret,
+                base64Decoding(encryptionModel.getDeriveSaltBase64()));
+        if (encryptionKey == null) {
+            Log.e(TAG, "could not derive the encryption key, aborted");
+            return null;
+        }
+        // encryptionTransformation
+        String encryptionAlgorithm = encryptionModel.getEncryptionAlgorithm();
+        String transformation = "";
+        if (encryptionAlgorithm.equals(ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
+            transformation = "AES/CBC/PKCS5PADDING";
+        } else if (encryptionAlgorithm.equals(ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
+            transformation = "AES/GCM/NOPADDING";
+        } else {
+            // at this point no valid encryptionAlgorithm was found
+            Log.e(TAG, "no valid encryptionAlgorithm found, aborted");
+            return null;
+        }
+        byte[] decryptedData = decryptAesInternal(
+                encryptionAlgorithm,
+                transformation,
+                encryptionKey,
+                base64Decoding(encryptionModel.getIvBase64()),
+                base64Decoding(encryptionModel.getCiphertextBase64())
+        );
+        if (decryptedData == null) {
+            Log.e(TAG, "error during decryption, aborted");
+            return null;
+        }
+        return decryptedData;
+    }
 
     public static enum KEY_PARAMETER {
         P_256, P_521
@@ -358,6 +500,28 @@ public class EcEncryption {
         return result;
     }
 
+    public static byte[] getEncryptionKeyHkdf(String hkdfAlgorithm, HKDF_NAME hkdf_name, byte[] sharedSecret, byte[] salt) {
+        // HKDF algorithm
+        HKDF hkdf = null;
+        if (hkdfAlgorithm.equals(HKDF_ALGORITHM.HMAC_SHA256.toString())) {
+            hkdf = HKDF.fromHmacSha256();
+        } else if (hkdfAlgorithm.equals(HKDF_ALGORITHM.HMAC_SHA512.toString())) {
+            hkdf = HKDF.fromHmacSha512();
+        } else {
+            // at this pint no valid deriveAlgorithm was found
+            Log.e(TAG, "no valid HKDF algorithm found, aborted");
+            return null;
+        }
+        if (sharedSecret == null) {
+            Log.d(TAG, "shared secret is NULL, aborted");
+        }
+        // generate a random salt
+        byte[] pseudoRandomKey;
+        pseudoRandomKey = hkdf.extract(salt, sharedSecret);
+        // create expanded bytes for e.g. AES secret key
+        return hkdf.expand(pseudoRandomKey, hkdf_name.toString().getBytes(StandardCharsets.UTF_8), 32);
+    }
+
     public static byte[] getEncryptionKeyHkdf(HKDF_ALGORITHM hkdf_algorithm, HKDF_NAME hkdf_name, byte[] sharedSecret, byte[] salt) {
         // HKDF algorithm
         HKDF hkdf = null;
@@ -383,6 +547,77 @@ public class EcEncryption {
     public static enum ENCRYPTION_ALGORITHM {
         AES_CBC_PKCS5PADDING, AES_GCM_NOPADDING
     }
+
+    public static EncryptionModel encryptAesInternal(String hkdfAlgorithm, String encryptionAlgorithm, String transformation, String senderKeyId, String recipientKeyId, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
+        // todo check for encryptionAlgorithm allowed, nulled key + data
+        //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
+        //String encAlgorithm = "AES/CBC/PKCS5PADDING";
+        // todo cases CBC or GCM
+        byte[] initVector = new byte[0];
+        byte[] ciphertext;
+        SecretKey key;
+        key = new SecretKeySpec(encryptionKey, "AES"); //AES-256 key
+        Cipher cipher = null;
+        try {
+            cipher = Cipher.getInstance(transformation);
+            if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
+                initVector = generateRandomNumber(16);
+                cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(initVector));
+            } else if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
+                initVector = generateRandomNumber(12);
+                cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(16, initVector));
+            }
+            ciphertext = cipher.doFinal(data);
+        } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
+                 BadPaddingException | NoSuchPaddingException |
+                 InvalidAlgorithmParameterException | InvalidKeyException e) {
+            //throw new RuntimeException(e);
+            return null;
+        }
+        // build the return model
+       return new EncryptionModel(
+                senderKeyId,
+                recipientKeyId,
+                "", // fill for ECDHE
+                base64EncodingNpe(deriveSalt),
+                deriveName,
+                hkdfAlgorithm,
+                encryptionAlgorithm,
+                base64EncodingNpe(initVector),
+                base64EncodingNpe(ciphertext));
+    }
+
+    public static byte[] decryptAesInternal(String encryptionAlgorithm, String transformation, byte[] encryptionKey, byte[] initVector, byte[] ciphertext) {
+        //public static byte[] decryptAes(EcdhModel encryptedData, PrivateKey recipientPrivateKey, PublicKey senderPublicKey) {
+        // todo get the private key by the keyId
+
+        // todo check for encryptionAlgorithm allowed, nulled key + data
+        //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
+        //String encAlgorithm = "AES/CBC/PKCS5PADDING";
+        // todo cases CBC or GCM
+        byte[] decryptedData;
+        SecretKey key;
+        key = new SecretKeySpec(encryptionKey, "AES"); //AES-256 key
+        Cipher cipher = null;
+        try {
+            cipher = Cipher.getInstance(transformation);
+            if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
+                cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(initVector));
+            } else if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
+                cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(16, initVector));
+            }
+            decryptedData = cipher.doFinal(ciphertext);
+        } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
+                 BadPaddingException | NoSuchPaddingException |
+                 InvalidAlgorithmParameterException | InvalidKeyException e) {
+            //throw new RuntimeException(e);
+            System.out.println("** Exception: " + e.getMessage());
+            return null;
+        }
+        // build the return model
+        return decryptedData;
+    }
+
 
     public static EcdhModel encryptAes(String deriveAlgorithm, String encryptionAlgorithm, String transformation, String aliasRecipient, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
         // todo check for encryptionAlgorithm allowed, nulled key + data

@@ -48,6 +48,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import de.androidcrypto.eccryptography.model.EcdhModel;
 import de.androidcrypto.eccryptography.model.EcdheModel;
+import de.androidcrypto.eccryptography.model.EncryptionModel;
 import de.androidcrypto.eccryptography.model.PrivateKeyModel;
 import de.androidcrypto.eccryptography.model.PublicKeyModel;
 
@@ -447,7 +448,7 @@ public class MainActivity extends AppCompatActivity {
 
                 KeyFactory kf = null;
                 PublicKey senderPubKey;
-                byte[] encodedSenderPublicKey = base64Decoding(pk1.getKeyEncodedBase64());
+                byte[] encodedSenderPublicKey = base64Decoding(pk1.getPublicKeyEncodedBase64());
                 try {
                     kf = KeyFactory.getInstance("EC");
                     senderPubKey = (PublicKey) kf.generatePublic(new X509EncodedKeySpec(encodedSenderPublicKey));
@@ -497,7 +498,7 @@ public class MainActivity extends AppCompatActivity {
 
                 KeyFactory kf = null;
                 PublicKey senderPubKey;
-                byte[] encodedSenderPublicKey = base64Decoding(pk1.getKeyEncodedBase64());
+                byte[] encodedSenderPublicKey = base64Decoding(pk1.getPublicKeyEncodedBase64());
                 try {
                     kf = KeyFactory.getInstance("EC");
                     senderPubKey = (PublicKey) kf.generatePublic(new X509EncodedKeySpec(encodedSenderPublicKey));
@@ -741,8 +742,26 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("PUBKM 2 keyId: ").append(pubkm2Re.getKeyId()).append("\n");
 
                 // encryption using the PrivateKeyModel1 (sender) and PublicKeyModel2 (recipient)
+                String plaintextString = "The quick brown fox jumps over the lazy dog";
+                sb.append("").append("\n");
+                sb.append("encrypt plaintext: ").append(plaintextString).append("\n");
+                byte[] plaintext = plaintextString.getBytes(StandardCharsets.UTF_8);
 
+                EncryptionModel encryptedData = EcEncryption.ecdhEncryption(
+                        pkm1,
+                        publicKeyModel2,
+                        EcEncryption.HKDF_ALGORITHM.HMAC_SHA256,
+                        EcEncryption.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING,
+                        plaintext);
+                sb.append("encrypted data: ").append(encryptedData.dump()).append("\n");
 
+                sb.append("").append("\n");
+                sb.append("decrypt ciphertext: ").append("\n");
+                byte[] decryptedData = EcEncryption.ecdhDecryption(
+                        pkm2,
+                        publicKeyModel1,
+                        encryptedData);
+                sb.append("decrypted data: ").append(new String(decryptedData)).append("\n");
 
 
                 sb.append("").append("\n");

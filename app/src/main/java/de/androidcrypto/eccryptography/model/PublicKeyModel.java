@@ -5,13 +5,13 @@ public class PublicKeyModel {
     private final String keyType; // "EC", "RSA"
     private final String keyParameter; // "P-256", "P-521", "2048"
     private final String keyId; // a name like an alias or UUID
-    private final String keyEncodedBase64; // the encoded public key in Base64 encoding
+    private final String publicKeyEncodedBase64; // the encoded public key in Base64 encoding
 
-    public PublicKeyModel(String keyType, String keyParameter, String keyId, String keyEncodedBase64) {
+    public PublicKeyModel(String keyType, String keyParameter, String keyId, String publicKeyEncodedBase64) {
         this.keyType = keyType;
         this.keyParameter = keyParameter;
         this.keyId = keyId;
-        this.keyEncodedBase64 = keyEncodedBase64;
+        this.publicKeyEncodedBase64 = publicKeyEncodedBase64;
     }
 
     public static enum KEY_TYPE {
@@ -34,8 +34,8 @@ public class PublicKeyModel {
         return keyId;
     }
 
-    public String getKeyEncodedBase64() {
-        return keyEncodedBase64;
+    public String getPublicKeyEncodedBase64() {
+        return publicKeyEncodedBase64;
     }
 
     public String dump() {
@@ -44,7 +44,7 @@ public class PublicKeyModel {
         sb.append("key type: ").append(keyType).append("\n");
         sb.append("key parameter: ").append(keyParameter).append("\n");
         sb.append("keyId: ").append(keyId).append("\n");
-        sb.append("keyBase64: ").append(keyEncodedBase64).append("\n");
+        sb.append("publicKeyBase64: ").append(publicKeyEncodedBase64).append("\n");
         return sb.toString();
     }
 }

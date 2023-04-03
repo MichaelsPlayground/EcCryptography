@@ -48,13 +48,14 @@ import javax.crypto.spec.SecretKeySpec;
 
 import de.androidcrypto.eccryptography.model.EcdhModel;
 import de.androidcrypto.eccryptography.model.EcdheModel;
+import de.androidcrypto.eccryptography.model.PrivateKeyModel;
 import de.androidcrypto.eccryptography.model.PublicKeyModel;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainAct";
 
-    Button btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9, btn10, btn11;
+    Button btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9, btn10, btn11, btn12, btn13;
     TextView tv2;
 
     private static final String EC_SPEC_P256 = "p-256";
@@ -89,6 +90,8 @@ public class MainActivity extends AppCompatActivity {
         btn9 = findViewById(R.id.btn9);
         btn10 = findViewById(R.id.btn10);
         btn11 = findViewById(R.id.btn11);
+        btn12 = findViewById(R.id.btn12);
+        btn13 = findViewById(R.id.btn13);
         tv2 = findViewById(R.id.tv2);
 
         // check for Android version
@@ -523,9 +526,9 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("Manual ECDH ext").append("\n");
 
                 // generate a key pair
-                KeyPair keyPair1 = EcEncryption.generateEcKeyPair(EcEncryption.KEY_PARAMETER.P_256);
+                KeyPair keyPair1 = EcEncryption.generateEcKeyPairInternal(EcEncryption.KEY_PARAMETER.P_256);
                 sb.append("key pair 1 generated").append("\n");
-                KeyPair keyPair2 = EcEncryption.generateEcKeyPair(EcEncryption.KEY_PARAMETER.P_256);
+                KeyPair keyPair2 = EcEncryption.generateEcKeyPairInternal(EcEncryption.KEY_PARAMETER.P_256);
                 sb.append("key pair 2 generated").append("\n");
                 sb.append("").append("\n");
 
@@ -675,6 +678,78 @@ public class MainActivity extends AppCompatActivity {
                 */
                 tv2.setText(sb.toString());
 
+            }
+        });
+
+        btn12.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Log.d(TAG, "btn12");
+                tv2.setText("");
+                StringBuilder sb = new StringBuilder();
+                sb.append("ECDH encapsulated ext").append("\n");
+
+                // generate keys
+                PrivateKeyModel pkm1 = EcEncryption.generateEcKeyPair(EcEncryption.KEY_PARAMETER.P_256);
+                PrivateKeyModel pkm2 = EcEncryption.generateEcKeyPair(EcEncryption.KEY_PARAMETER.P_256);
+                sb.append("").append("\n");
+                sb.append("PrivateKeyModel 1 generated").append("\n").append(pkm1.dump());
+                sb.append("").append("\n");
+                sb.append("PrivateKeyModel 2 generated").append("\n").append(pkm2.dump());
+
+                // get JSON encoding
+                // you can store the json string easily
+                String pkm1Json = EcEncryption.privateKeyModelToJson(pkm1);
+                String pkm2Json = EcEncryption.privateKeyModelToJson(pkm2);
+                sb.append("").append("\n");
+                sb.append("PrivateKeyModel 1 JSON").append("\n").append(pkm1Json);
+                sb.append("").append("\n");
+                sb.append("PrivateKeyModel 2 JSON").append("\n").append(pkm2Json);
+
+                // json back to PrivateKeyModel just for testing
+                PrivateKeyModel pkm1Re = EcEncryption.privateKeyModelFromJson(pkm1Json);
+                PrivateKeyModel pkm2Re = EcEncryption.privateKeyModelFromJson(pkm2Json);
+                sb.append("").append("\n").append("\n");
+                sb.append("get PrivateKeyModel from Json").append("\n");
+                sb.append("PKM 1 keyId: ").append(pkm1Re.getKeyId()).append("\n");
+                sb.append("PKM 2 keyId: ").append(pkm2Re.getKeyId()).append("\n");
+
+                sb.append("").append("\n").append("\n");
+                sb.append("get PublicKeyModel from PrivateKeyModel").append("\n");
+                PublicKeyModel publicKeyModel1 = EcEncryption.getPublicKeyModelFromPrivateKeyModel(pkm1);
+                PublicKeyModel publicKeyModel2 = EcEncryption.getPublicKeyModelFromPrivateKeyModel(pkm2);
+                sb.append("").append("\n");
+                sb.append("PublicKeyModel 1").append("\n").append(publicKeyModel1.dump());
+                sb.append("").append("\n");
+                sb.append("PublicKeyModel 2").append("\n").append(publicKeyModel2.dump());
+
+                // get JSON encoding
+                // you can store the json string easily
+                String pubkm1Json = EcEncryption.publicKeyModelToJson(publicKeyModel1);
+                String pubkm2Json = EcEncryption.publicKeyModelToJson(publicKeyModel2);
+                sb.append("").append("\n");
+                sb.append("PublicKeyModel 1 JSON").append("\n").append(pubkm1Json);
+                sb.append("").append("\n");
+                sb.append("PublicKeyModel 2 JSON").append("\n").append(pubkm2Json);
+
+                // json back to PrivateKeyModel just for testing
+                PublicKeyModel pubkm1Re = EcEncryption.publicKeyModelFromJson(pubkm1Json);
+                PublicKeyModel pubkm2Re = EcEncryption.publicKeyModelFromJson(pubkm2Json);
+                sb.append("").append("\n").append("\n");
+                sb.append("get PublicKeyModel from Json").append("\n");
+                sb.append("PUBKM 1 keyId: ").append(pubkm1Re.getKeyId()).append("\n");
+                sb.append("PUBKM 2 keyId: ").append(pubkm2Re.getKeyId()).append("\n");
+
+                // encryption using the PrivateKeyModel1 (sender) and PublicKeyModel2 (recipient)
+
+
+
+
+                sb.append("").append("\n");
+
+
+
+                tv2.setText(sb.toString());
             }
         });
 

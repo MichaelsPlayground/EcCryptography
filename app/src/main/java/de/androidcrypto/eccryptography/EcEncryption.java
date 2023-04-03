@@ -4,16 +4,24 @@ import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.UnrecoverableEntryException;
+import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
@@ -30,6 +38,9 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import de.androidcrypto.eccryptography.model.EcdhModel;
+import de.androidcrypto.eccryptography.model.EncryptionModel;
+import de.androidcrypto.eccryptography.model.PrivateKeyModel;
+import de.androidcrypto.eccryptography.model.PublicKeyModel;
 
 /**
  * This class does all the work with low level methods. It does NOT use the Android Keystore
@@ -40,8 +51,139 @@ import de.androidcrypto.eccryptography.model.EcdhModel;
 
 public class EcEncryption {
 
-
     private static final String TAG = "EcEncryption";
+
+    /**
+     * encapsulated methods
+     */
+
+    public static PrivateKeyModel generateEcKeyPair(KEY_PARAMETER key_parameter) {
+        int keyLength;
+        if (key_parameter == KEY_PARAMETER.P_256) {
+            keyLength = 256;
+        } else if (key_parameter == KEY_PARAMETER.P_521) {
+            keyLength = 521;
+        } else {
+            Log.d(TAG, "unsupported key parameter, aborted");
+            return null;
+        }
+        KeyPair keyPair = generateEcKeyPairInternal(key_parameter);
+        if (keyPair == null) {
+            Log.e(TAG, "could not generate PrivateKeyModel, aborted");
+            return null;
+        }
+        String keyId = generateUuid();
+        PrivateKeyModel pkm = new PrivateKeyModel(
+                KEY_TYPE.EC.toString(),
+                key_parameter.toString(),
+                keyId,
+                base64EncodingNpe(keyPair.getPrivate().getEncoded()),
+                base64EncodingNpe(keyPair.getPublic().getEncoded())
+        );
+        Log.d(TAG, "PrivateKeyModel generated with keyId: " + keyId + " and keyLength: " + keyLength);
+        return pkm;
+    }
+
+    public static PublicKeyModel getPublicKeyModelFromPrivateKeyModel(PrivateKeyModel pkm) {
+        if (pkm == null) {
+            Log.d(TAG, "PrivateKeyModel is NULL, aborted");
+            return null;
+        }
+        return new PublicKeyModel(
+                pkm.getKeyType(),
+                pkm.getKeyParameter(),
+                pkm.getKeyId(),
+                pkm.getPublicKeyEncodedBase64()
+        );
+    }
+
+    public static EncryptionModel ecdhEncryption(PrivateKeyModel privateKeyModel, PublicKeyModel remotePublicKey, HKDF_ALGORITHM hkdf_algorithm, ENCRYPTION_ALGORITHM encryptionAlgorithm, byte[] dataToEncrypt) {
+        if (privateKeyModel == null) {
+            Log.d(TAG, "privateKeyModel is NULL, aborted");
+            return null;
+        }
+        if (remotePublicKey == null) {
+            Log.d(TAG, "remotePublicModel is NULL, aborted");
+            return null;
+        }
+
+
+
+        // check that keyParameter and type are equals fro pri + pub
+        return null;
+    }
+    public static EncryptionModel ecdhEncryption(String senderKeyId, String recipientKeyId, PublicKeyModel remotePublicKey, String deriveAlgorithm, String encryptionAlgorithm, byte[] dataToEncrypt) {
+        // todo sanity checks
+        // todo remote public key = "EC", keyParameter allowed, encryptionAlgorithm allowed, dataToEncrypt != null
+
+        // deriveAlgorithm
+        HKDF hkdf = null;
+        if (deriveAlgorithm.equals(EcdhModel.HKDF_ALGORITHM.HMAC_SHA256.toString())) {
+            hkdf = HKDF.fromHmacSha256();
+        } else if (deriveAlgorithm.equals(EcdhModel.HKDF_ALGORITHM.HMAC_SHA512.toString())) {
+            hkdf = HKDF.fromHmacSha512();
+        } else {
+            // at this pint no valid deriveAlgorithm was found
+            Log.e(TAG, "no valid deriveAlgorithm found, aborted");
+            return null;
+        }
+        // encryptionAlgorithm
+        String transformation = "";
+        if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
+            transformation = "AES/CBC/PKCS5PADDING";
+        } else if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
+            transformation = "AES/GCM/NOPADDING";
+        } else {
+            // at this point no valid encryptionAlgorithm was found
+            Log.e(TAG, "no valid encryptionAlgorithm found, aborted");
+            return null;
+        }
+
+        // get the private key from AndroidKeystore
+        KeyStore ks = null;
+        KeyStore.Entry entry;
+        try {
+            ks = KeyStore.getInstance(KEY_STORE_PROVIDER);
+            ks.load(null);
+            entry = ks.getEntry(senderKeyId, null);
+            if (!(entry instanceof KeyStore.PrivateKeyEntry)) {
+                Log.w(TAG, "Not an instance of a PrivateKeyEntry");
+                return null;
+            }
+        } catch (KeyStoreException | UnrecoverableEntryException | CertificateException |
+                 IOException | NoSuchAlgorithmException e) {
+            //throw new RuntimeException(e);
+            Log.e(TAG, "Exception: " + e.getMessage());
+            return null;
+        }
+        PrivateKey privateKey = ((KeyStore.PrivateKeyEntry) entry).getPrivateKey();
+        // get public key
+        byte[] encodedPublicKey = base64Decoding(remotePublicKey.getKeyEncodedBase64());
+        KeyFactory kf = null;
+        PublicKey remotePubKey;
+        try {
+            kf = KeyFactory.getInstance("EC");
+            remotePubKey = (PublicKey) kf.generatePublic(new X509EncodedKeySpec(encodedPublicKey));
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            //throw new RuntimeException(e);
+            Log.e(TAG, "Exception: " + e.getMessage());
+            return null;
+        }
+        // derive the sharedSecret
+        byte[] sharedSecret = sharedSecretEc(privateKey, remotePubKey);
+
+        // get the encryption key with hkdf
+        byte[] randomSalt32Byte = generateRandomNumber(32);
+        byte[] pseudoRandomKey;
+        pseudoRandomKey = hkdf.extract(randomSalt32Byte, sharedSecret);
+        //create expanded bytes for e.g. AES secret key and IV
+        byte[] encryptionKey = hkdf.expand(pseudoRandomKey, HKDF_KEY.getBytes(StandardCharsets.UTF_8), 32);
+
+        //EncryptionModel ecdhModel = encryptAes(deriveAlgorithm, encryptionAlgorithm, transformation, senderKeyId, recipientKeyId, randomSalt32Byte, HKDF_KEY, encryptionKey, dataToEncrypt);
+        EncryptionModel ecdhModel = encryptAes(deriveAlgorithm, encryptionAlgorithm, transformation, senderKeyId, recipientKeyId, randomSalt32Byte, HKDF_KEY, encryptionKey, dataToEncrypt);
+        return ecdhModel;
+    }
+
 
     public static enum KEY_PARAMETER {
         P_256, P_521
@@ -51,7 +193,12 @@ public class EcEncryption {
         EC, RSA
     }
 
-    public static KeyPair generateEcKeyPair(KEY_PARAMETER key_parameter) {
+    /**
+     * internal methods
+     */
+
+
+    public static KeyPair generateEcKeyPairInternal(KEY_PARAMETER key_parameter) {
         int keyLength;
         if (key_parameter == KEY_PARAMETER.P_256) {
             keyLength = 256;
@@ -86,6 +233,7 @@ public class EcEncryption {
     public static PrivateKey getPrivateKeyFromEncoded(byte[] encodedPrivateKey) {
         if (encodedPrivateKey == null) {
             Log.d(TAG, "encoded Private Key is NULL, aborted");
+            return null;
         }
         KeyFactory kf = null;
         PrivateKey privateKey;
@@ -104,6 +252,7 @@ public class EcEncryption {
     public static PublicKey getPublicKeyFromEncoded(byte[] encodedPublicKey) {
         if (encodedPublicKey == null) {
             Log.d(TAG, "encoded Public Key is NULL, aborted");
+            return null;
         }
         KeyFactory kf = null;
         PublicKey publicKey;
@@ -118,6 +267,40 @@ public class EcEncryption {
         Log.d(TAG, "Public Key from encoded generated");
         return publicKey;
     }
+
+    /**
+     * JSON converter
+     */
+
+    public static String privateKeyModelToJson(PrivateKeyModel privateKeyModel) {
+        return new GsonBuilder().setPrettyPrinting().create().toJson(privateKeyModel, PrivateKeyModel.class);
+    }
+
+    public static PrivateKeyModel privateKeyModelFromJson(String jsonString) {
+        Gson gson = new Gson();
+        return gson.fromJson(jsonString, PrivateKeyModel.class);
+    }
+
+    public static String publicKeyModelToJson(PublicKeyModel publicKeyModel) {
+        return new GsonBuilder().setPrettyPrinting().create().toJson(publicKeyModel, PublicKeyModel.class);
+    }
+
+    public static PublicKeyModel publicKeyModelFromJson(String jsonString) {
+        Gson gson = new Gson();
+        return gson.fromJson(jsonString, PublicKeyModel.class);
+    }
+
+    // todo change model to new class EncryptionModel
+    public static String encryptionModelToJson(EcdhModel encryptionModel) {
+        return new GsonBuilder().setPrettyPrinting().create().toJson(encryptionModel, EcdhModel.class);
+    }
+
+    // todo change model to new class EncryptionModel
+    public static EcdhModel encryptionModelFromJson(String jsonString) {
+        Gson gson = new Gson();
+        return gson.fromJson(jsonString, EcdhModel.class);
+    }
+
 
     public static byte[] getEcdhSharedSecret(PrivateKey privateKey, PublicKey remotePublicKey) {
         if (privateKey == null) {

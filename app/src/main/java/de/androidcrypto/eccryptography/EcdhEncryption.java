@@ -306,6 +306,7 @@ public class EcdhEncryption {
         // build the return model
         return decryptedData;
     }
+
     private static byte[] generateRandomNumber(int length) {
         if (length < 1) return null;
         byte[] number = new byte[length];

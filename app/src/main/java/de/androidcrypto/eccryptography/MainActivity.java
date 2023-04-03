@@ -1,6 +1,7 @@
 package de.androidcrypto.eccryptography;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
@@ -53,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainAct";
 
-    Button btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9;
+    Button btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9, btn10, btn11;
     TextView tv2;
 
     private static final String EC_SPEC_P256 = "p-256";
@@ -86,7 +87,22 @@ public class MainActivity extends AppCompatActivity {
         btn7 = findViewById(R.id.btn7);
         btn8 = findViewById(R.id.btn8);
         btn9 = findViewById(R.id.btn9);
+        btn10 = findViewById(R.id.btn10);
+        btn11 = findViewById(R.id.btn11);
         tv2 = findViewById(R.id.tv2);
+
+        // check for Android version
+        // CODES.S = Android 31
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            btn2.setEnabled(false);
+            btn3.setEnabled(false);
+            btn4.setEnabled(false);
+            //btn5.setEnabled(false); // manual work
+            btn6.setEnabled(false);
+            btn7.setEnabled(false);
+            btn8.setEnabled(false);
+            btn9.setEnabled(false);
+        }
 
         btn2.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -495,6 +511,170 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 tv2.setText(sb.toString());
+            }
+        });
+
+        btn10.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Log.d(TAG, "btn10");
+                tv2.setText("");
+                StringBuilder sb = new StringBuilder();
+                sb.append("Manual ECDH ext").append("\n");
+
+                // generate a key pair
+                KeyPair keyPair1 = EcEncryption.generateEcKeyPair(EcEncryption.KEY_PARAMETER.P_256);
+                sb.append("key pair 1 generated").append("\n");
+                KeyPair keyPair2 = EcEncryption.generateEcKeyPair(EcEncryption.KEY_PARAMETER.P_256);
+                sb.append("key pair 2 generated").append("\n");
+                sb.append("").append("\n");
+
+                // generate PublicKeyModels
+                String publicKey1Base64 = EcEncryption.base64EncodingNpe(keyPair1.getPublic().getEncoded());
+                String keyId1 = EcEncryption.generateUuid();
+                PublicKeyModel publicKeyModel1 = new PublicKeyModel(EcEncryption.KEY_TYPE.EC.toString(), EcEncryption.KEY_PARAMETER.P_256.toString(), keyId1, publicKey1Base64);
+                String publicKey2Base64 = EcEncryption.base64EncodingNpe(keyPair2.getPublic().getEncoded());
+                String keyId2 = EcEncryption.generateUuid();
+                PublicKeyModel publicKeyModel2 = new PublicKeyModel(EcEncryption.KEY_TYPE.EC.toString(), EcEncryption.KEY_PARAMETER.P_256.toString(), keyId2, publicKey2Base64);
+                sb.append("PublicKeyModel 1 generated").append("\n").append(publicKeyModel1.dump()).append("\n");
+                sb.append("PublicKeyModel 2 generated").append("\n").append(publicKeyModel2.dump()).append("\n");
+
+                // get the shared secrets
+                sb.append("").append("\n");
+                sb.append("get shared secrets").append("\n");
+                byte[] sharedSecret1 = EcEncryption.getEcdhSharedSecret(keyPair1.getPrivate(), keyPair2.getPublic());
+                byte[] sharedSecret2 = EcEncryption.getEcdhSharedSecret(keyPair2.getPrivate(), keyPair1.getPublic());
+                sb.append("sharedSecret 1: ").append(EcEncryption.base64EncodingNpe(sharedSecret1)).append("\n");
+                sb.append("sharedSecret 2: ").append(EcEncryption.base64EncodingNpe(sharedSecret2)).append("\n");
+
+                // get the encryption keys
+                sb.append("").append("\n");
+                sb.append("get encryption keys").append("\n");
+                byte[][] encryptionKeyArray1 = EcEncryption.deriveEncryptionKeyHkdf(EcEncryption.HKDF_ALGORITHM.HMAC_SHA256, EcEncryption.HKDF_NAME.AES_KEY, sharedSecret1);
+
+                sb.append("EncryptionKey 1 generated:  ").append("\n").append(EcEncryption.base64EncodingNpe(encryptionKeyArray1[0])).append("\n");
+                sb.append("EncryptionKey 1 randomSalt: ").append("\n").append(EcEncryption.base64EncodingNpe(encryptionKeyArray1[1])).append("\n");
+                //sb.append("PublicKeyModel 2 generated").append("\n").append(publicKeyModel2.dump()).append("\n");
+                byte[] encryptionKey2 = EcEncryption.getEncryptionKeyHkdf(EcEncryption.HKDF_ALGORITHM.HMAC_SHA256, EcEncryption.HKDF_NAME.AES_KEY, sharedSecret2, encryptionKeyArray1[1]);
+                sb.append("EncryptionKey 2 generated:  ").append("\n").append(EcEncryption.base64EncodingNpe(encryptionKey2)).append("\n");
+
+                // encrypt some data
+                String plaintextString = "The quick brown fox jumps over the lazy dog";
+                sb.append("").append("\n");
+                sb.append("encrypt plaintext: ").append(plaintextString).append("\n");
+                byte[] plaintext = plaintextString.getBytes(StandardCharsets.UTF_8);
+
+                // public static EcdhModel encryptAes(String deriveAlgorithm, String encryptionAlgorithm, String transformation, String aliasRecipient, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
+                EcdhModel ecdhModel1 = EcEncryption.encryptAes(
+                        EcEncryption.HKDF_ALGORITHM.HMAC_SHA256.toString(),
+                        EcEncryption.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString(),
+                        "AES/CBC/PKCS5PADDING",
+                        keyId2,
+                        encryptionKeyArray1[1],
+                        EcEncryption.HKDF_NAME.AES_KEY.toString(),
+                        encryptionKeyArray1[0],
+                        plaintext
+                );
+                sb.append("ecdhModel 1 generated").append("\n").append(ecdhModel1.dump()).append("\n");
+
+                // decrypt the data
+                sb.append("").append("\n");
+                sb.append("decrypt ecdhModel 1").append("\n");
+
+                // public static byte[] decryptAes(String encryptionAlgorithm, String transformation, String alias, byte[] encryptionKey, byte[] initVector, byte[] ciphertext) {
+                byte[] decryptedData = EcEncryption.decryptAes(
+                        EcEncryption.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString(),
+                        "AES/CBC/PKCS5PADDING",
+                        keyId2,
+                        encryptionKey2,
+                        EcEncryption.base64Decoding(ecdhModel1.getIvBase64()),
+                        EcEncryption.base64Decoding(ecdhModel1.getCiphertextBase64())
+                );
+                sb.append("decryptedData: ").append("\n").append(new String(decryptedData, StandardCharsets.UTF_8)).append("\n");
+
+
+
+                /*
+                // manual work
+                // Generate ephemeral ECDH keypair
+                KeyPair kp1;
+                try {
+                    KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
+                    kpg.initialize(256);
+                    //kpg.initialize(521);
+                    //kpg.initialize(384);
+                    kp1 = kpg.generateKeyPair();
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
+                }
+
+                byte[] ourPriKey1 = kp1.getPrivate().getEncoded();
+                byte[] ourPubKey1 = kp1.getPublic().getEncoded();
+
+                KeyPair kp2;
+                try {
+                    KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
+                    kpg.initialize(256);
+                    kp2 = kpg.generateKeyPair();
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
+                }
+                byte[] remotePriKey2 = kp2.getPrivate().getEncoded();
+                byte[] remotePubKey2 = kp2.getPublic().getEncoded();
+
+                KeyFactory kf = null;
+                PublicKey remotePublicKey;
+                try {
+                    kf = KeyFactory.getInstance("EC");
+                    X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(remotePubKey2);
+                    remotePublicKey = kf.generatePublic(pkSpec);
+                } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                    throw new RuntimeException(e);
+                }
+                // Perform key agreement
+                KeyAgreement ka = null;
+                try {
+                    ka = KeyAgreement.getInstance("ECDH");
+                    ka.init(kp1.getPrivate());
+                    ka.doPhase(remotePublicKey, true);
+                } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                }
+                // Read shared secret
+                byte[] sharedSecret1 = ka.generateSecret();
+
+                // shared secret 2
+                KeyAgreement ka2= null;
+                try {
+                    ka2 = KeyAgreement.getInstance("ECDH");
+                    ka2.init(kp2.getPrivate());
+                    ka2.doPhase(kp1.getPublic(), true);
+                } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                }
+                // Read shared secret
+                byte[] sharedSecret2 = ka2.generateSecret();
+
+                // HKDF only for shared secret 1
+                // get the encryption key with hkdf
+                byte[] randomSalt32Byte = generateRandomNumber(32);
+                byte[] pseudoRandomKey;
+                //HKDF hkdf = HKDF.fromHmacSha512();
+                HKDF hkdf = HKDF.fromHmacSha256();
+                pseudoRandomKey = hkdf.extract(randomSalt32Byte, sharedSecret1);
+                //create expanded bytes for e.g. AES secret key and IV
+                byte[] encryptionKey1 = hkdf.expand(pseudoRandomKey, "aes-key".getBytes(StandardCharsets.UTF_8), 32);
+
+
+                sb.append("Manual ECDH").append("\n");
+                sb.append("PrivateKey 1: ").append(kp1.getPrivate().toString()).append(" Algorithm: ").append(kp1.getPrivate().getAlgorithm()).append("\n");
+                sb.append("PublicKey  2: ").append(kp2.getPublic().toString()).append("\n");
+                sb.append("Shared secret 1 length: ").append(sharedSecret1.length).append(" data: ").append(bytesToHexNpe(sharedSecret1)).append("\n");
+                sb.append("Shared secret 2 length: ").append(sharedSecret2.length).append(" data: ").append(bytesToHexNpe(sharedSecret2)).append("\n");
+                sb.append("encryptionKey 1 length: ").append(encryptionKey1.length).append(" data: ").append(bytesToHexNpe(encryptionKey1)).append("\n");
+                */
+                tv2.setText(sb.toString());
+
             }
         });
 

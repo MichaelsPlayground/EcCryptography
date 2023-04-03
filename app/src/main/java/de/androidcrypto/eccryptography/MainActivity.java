@@ -745,6 +745,7 @@ public class MainActivity extends AppCompatActivity {
                 String plaintextString = "The quick brown fox jumps over the lazy dog";
                 sb.append("").append("\n");
                 sb.append("encrypt plaintext: ").append(plaintextString).append("\n");
+                sb.append("running in ECDH mode").append("\n");
                 byte[] plaintext = plaintextString.getBytes(StandardCharsets.UTF_8);
 
                 EncryptionModel encryptedData = EcEncryption.ecdhEncryption(
@@ -752,8 +753,15 @@ public class MainActivity extends AppCompatActivity {
                         publicKeyModel2,
                         EcEncryption.HKDF_ALGORITHM.HMAC_SHA256,
                         EcEncryption.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING,
-                        plaintext);
+                        plaintext,
+                        false // only ecdh encryption
+                );
                 sb.append("encrypted data: ").append(encryptedData.dump()).append("\n");
+
+                // encryptedData as JSON string
+                String encryptedDataString = EcEncryption.encryptionModelToJson(encryptedData);
+                sb.append("").append("\n");
+                sb.append("encrypted data (JSON):").append("\n").append(encryptedDataString).append("\n");
 
                 sb.append("").append("\n");
                 sb.append("decrypt ciphertext: ").append("\n");
@@ -761,12 +769,44 @@ public class MainActivity extends AppCompatActivity {
                         pkm2,
                         publicKeyModel1,
                         encryptedData);
-                sb.append("decrypted data: ").append(new String(decryptedData)).append("\n");
+                if (decryptedData == null) {
+                    sb.append("error on decryption").append("\n");
+                } else {
+                    sb.append("decrypted data: ").append(new String(decryptedData)).append("\n");
+                }
 
 
                 sb.append("").append("\n");
 
+                sb.append("running in ECDHE mode").append("\n");
+                EncryptionModel encryptedDataE = EcEncryption.ecdhEncryption(
+                        pkm1,
+                        publicKeyModel2,
+                        EcEncryption.HKDF_ALGORITHM.HMAC_SHA256,
+                        EcEncryption.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING,
+                        plaintext,
+                        true // ecdhe encryption
+                );
+                sb.append("encrypted data: ").append(encryptedDataE.dump()).append("\n");
 
+                // encryptedData as JSON string
+                String encryptedDataEString = EcEncryption.encryptionModelToJson(encryptedDataE);
+                sb.append("").append("\n");
+                sb.append("encrypted data (JSON):").append("\n").append(encryptedDataEString).append("\n");
+
+                sb.append("").append("\n");
+                sb.append("decrypt ciphertext: ").append("\n");
+                byte[] decryptedDataE = EcEncryption.ecdhDecryption(
+                        pkm2,
+                        null, // ECDHE mode
+                        encryptedDataE);
+                if (decryptedDataE == null) {
+                    sb.append("error on decryption").append("\n");
+                } else {
+                    sb.append("decrypted data: ").append(new String(decryptedDataE)).append("\n");
+                }
+
+                sb.append("").append("\n");
 
                 tv2.setText(sb.toString());
             }

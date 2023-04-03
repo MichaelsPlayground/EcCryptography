@@ -98,7 +98,13 @@ public class EcEncryption {
         );
     }
 
-    public static EncryptionModel ecdhEncryption(PrivateKeyModel privateKeyModel, PublicKeyModel remotePublicKeyModel, HKDF_ALGORITHM hkdf_algorithm, ENCRYPTION_ALGORITHM encryptionAlgorithm, byte[] dataToEncrypt) {
+    public static EncryptionModel ecdhEncryption(
+            PrivateKeyModel privateKeyModel,
+            PublicKeyModel remotePublicKeyModel,
+            HKDF_ALGORITHM hkdf_algorithm,
+            ENCRYPTION_ALGORITHM encryptionAlgorithm,
+            byte[] dataToEncrypt,
+            boolean isEcdhe) {
         if (privateKeyModel == null) {
             Log.d(TAG, "privateKeyModel is NULL, aborted");
             return null;
@@ -119,6 +125,11 @@ public class EcEncryption {
         if (!privateKeyModel.getKeyType().equals(remotePublicKeyModel.getKeyType())) {
             Log.d(TAG, "the key type are not equals in PrivateKeyModel and PublicKeyModel, aborted");
             return null;
+        }
+        if (isEcdhe) {
+            Log.d(TAG, "the encryption is running in ECDHE mode");
+        } else {
+            Log.d(TAG, "the encryption is running in ECDH mode");
         }
 
         // get shared secret
@@ -141,6 +152,10 @@ public class EcEncryption {
 
         // derive the encryption key
         byte[][] encryptionKeyArray = deriveEncryptionKeyHkdf(hkdf_algorithm, HKDF_NAME.AES_KEY, sharedSecret);
+        if (encryptionKeyArray == null) {
+            Log.e(TAG, "can not derive the encryption key, aborted");
+            return null;
+        }
 
         // encryptionTransformation
         String transformation = "";
@@ -153,7 +168,6 @@ public class EcEncryption {
             Log.e(TAG, "no valid encryptionAlgorithm found, aborted");
             return null;
         }
-
         // run the encryption
         EncryptionModel encryptionModel = encryptAesInternal(
                 HKDF_ALGORITHM.HMAC_SHA256.toString(),
@@ -164,7 +178,9 @@ public class EcEncryption {
                 encryptionKeyArray[1], // derive salt
                 EcEncryption.HKDF_NAME.AES_KEY.toString(),
                 encryptionKeyArray[0],
-                dataToEncrypt
+                dataToEncrypt,
+                isEcdhe,
+                privateKeyModel.getPublicKeyEncodedBase64()
         );
         if (encryptionModel == null) {
             Log.e(TAG, "Error during encryption");
@@ -173,108 +189,56 @@ public class EcEncryption {
         Log.d(TAG, "the data was encrypted");
         return encryptionModel;
     }
-    /*
-    public static EncryptionModel ecdhEncryption(String senderKeyId, String recipientKeyId, PublicKeyModel remotePublicKey, String deriveAlgorithm, String encryptionAlgorithm, byte[] dataToEncrypt) {
-        // todo sanity checks
-        // todo remote public key = "EC", keyParameter allowed, encryptionAlgorithm allowed, dataToEncrypt != null
-
-        // deriveAlgorithm
-        HKDF hkdf = null;
-        if (deriveAlgorithm.equals(EcdhModel.HKDF_ALGORITHM.HMAC_SHA256.toString())) {
-            hkdf = HKDF.fromHmacSha256();
-        } else if (deriveAlgorithm.equals(EcdhModel.HKDF_ALGORITHM.HMAC_SHA512.toString())) {
-            hkdf = HKDF.fromHmacSha512();
-        } else {
-            // at this pint no valid deriveAlgorithm was found
-            Log.e(TAG, "no valid deriveAlgorithm found, aborted");
-            return null;
-        }
-        // encryptionAlgorithm
-        String transformation = "";
-        if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
-            transformation = "AES/CBC/PKCS5PADDING";
-        } else if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
-            transformation = "AES/GCM/NOPADDING";
-        } else {
-            // at this point no valid encryptionAlgorithm was found
-            Log.e(TAG, "no valid encryptionAlgorithm found, aborted");
-            return null;
-        }
-
-        // get the private key from AndroidKeystore
-        KeyStore ks = null;
-        KeyStore.Entry entry;
-        try {
-            ks = KeyStore.getInstance(KEY_STORE_PROVIDER);
-            ks.load(null);
-            entry = ks.getEntry(senderKeyId, null);
-            if (!(entry instanceof KeyStore.PrivateKeyEntry)) {
-                Log.w(TAG, "Not an instance of a PrivateKeyEntry");
-                return null;
-            }
-        } catch (KeyStoreException | UnrecoverableEntryException | CertificateException |
-                 IOException | NoSuchAlgorithmException e) {
-            //throw new RuntimeException(e);
-            Log.e(TAG, "Exception: " + e.getMessage());
-            return null;
-        }
-        PrivateKey privateKey = ((KeyStore.PrivateKeyEntry) entry).getPrivateKey();
-        // get public key
-        byte[] encodedPublicKey = base64Decoding(remotePublicKey.getPublicKeyEncodedBase64());
-        KeyFactory kf = null;
-        PublicKey remotePubKey;
-        try {
-            kf = KeyFactory.getInstance("EC");
-            remotePubKey = (PublicKey) kf.generatePublic(new X509EncodedKeySpec(encodedPublicKey));
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            //throw new RuntimeException(e);
-            Log.e(TAG, "Exception: " + e.getMessage());
-            return null;
-        }
-        // derive the sharedSecret
-        byte[] sharedSecret = sharedSecretEc(privateKey, remotePubKey);
-
-        // get the encryption key with hkdf
-        byte[] randomSalt32Byte = generateRandomNumber(32);
-        byte[] pseudoRandomKey;
-        pseudoRandomKey = hkdf.extract(randomSalt32Byte, sharedSecret);
-        //create expanded bytes for e.g. AES secret key and IV
-        byte[] encryptionKey = hkdf.expand(pseudoRandomKey, HKDF_KEY.getBytes(StandardCharsets.UTF_8), 32);
-
-        //EncryptionModel ecdhModel = encryptAes(deriveAlgorithm, encryptionAlgorithm, transformation, senderKeyId, recipientKeyId, randomSalt32Byte, HKDF_KEY, encryptionKey, dataToEncrypt);
-        EncryptionModel ecdhModel = encryptAes(deriveAlgorithm, encryptionAlgorithm, transformation, senderKeyId, recipientKeyId, randomSalt32Byte, HKDF_KEY, encryptionKey, dataToEncrypt);
-        return ecdhModel;
-    }
-*/
 
     public static byte[] ecdhDecryption(PrivateKeyModel privateKeyModel, PublicKeyModel remotePublicKeyModel, EncryptionModel encryptionModel) {
+        boolean isEcdheMode = false;
         if (privateKeyModel == null) {
             Log.d(TAG, "privateKeyModel is NULL, aborted");
             return null;
         }
-        if (remotePublicKeyModel == null) {
-            Log.d(TAG, "remotePublicModel is NULL, aborted");
-            return null;
-        }
+
         if (encryptionModel == null) {
             Log.d(TAG, "encryption model is NULL, aborted");
             return null;
         }
 
-        // check that keyParameter and keyType are equals for private and public key
-        if (!privateKeyModel.getKeyParameter().equals(remotePublicKeyModel.getKeyParameter())) {
-            Log.d(TAG, "the key parameter are not equals in PrivateKeyModel and PublicKeyModel, aborted");
-            return null;
+        // check if senderPublicKeyBase is present, if yes we are running in ECDHE mode
+        String senderPublicKeyBase64 = encryptionModel.getSenderPublicKeyBase64();
+        if (!TextUtils.isEmpty(senderPublicKeyBase64)) {
+            // we are running in ECDHE mode
+            Log.d(TAG, "found a senderPublicKeyBase64 in encryptionModel, running ECDHE mode");
+            isEcdheMode = true;
+        } else {
+            Log.d(TAG, "not found a senderPublicKeyBase64 in encryptionModel, running ECDH mode");
         }
-        if (!privateKeyModel.getKeyType().equals(remotePublicKeyModel.getKeyType())) {
-            Log.d(TAG, "the key type are not equals in PrivateKeyModel and PublicKeyModel, aborted");
-            return null;
+        if (!isEcdheMode) {
+            // check only if it is the ECDH mode
+
+            if (remotePublicKeyModel == null) {
+                Log.d(TAG, "remotePublicModel is NULL, aborted");
+                return null;
+            }
+
+            // check that keyParameter and keyType are equals for private and public key
+            if (!privateKeyModel.getKeyParameter().equals(remotePublicKeyModel.getKeyParameter())) {
+                Log.d(TAG, "the key parameter are not equals in PrivateKeyModel and PublicKeyModel, aborted");
+                return null;
+            }
+            if (!privateKeyModel.getKeyType().equals(remotePublicKeyModel.getKeyType())) {
+                Log.d(TAG, "the key type are not equals in PrivateKeyModel and PublicKeyModel, aborted");
+                return null;
+            }
         }
 
         // get shared secret
         // private key
         PrivateKey privateKey = getPrivateKeyFromEncoded(base64Decoding(privateKeyModel.getPrivateKeyEncodedBase64()));
-        PublicKey remotePublicKey = getPublicKeyFromEncoded(base64Decoding(remotePublicKeyModel.getPublicKeyEncodedBase64()));
+        PublicKey remotePublicKey;
+        if (isEcdheMode) {
+            remotePublicKey = getPublicKeyFromEncoded(base64Decoding(senderPublicKeyBase64));
+        } else {
+            remotePublicKey = getPublicKeyFromEncoded(base64Decoding(remotePublicKeyModel.getPublicKeyEncodedBase64()));
+        }
         if (privateKey == null) {
             Log.e(TAG, "could not retrieve the Private Key, aborted");
             return null;
@@ -294,9 +258,11 @@ public class EcEncryption {
             Log.e(TAG, "the keyId in the Private Key Model does not match the recipientKeyId in encryptedModel, aborted");
             return null;
         }
-        if (!remotePublicKeyModel.getKeyId().equals(encryptionModel.getSenderKeyId())) {
-            Log.e(TAG, "the keyId in the remote Public Key Model does not match the senderKeyId in encryptedModel, aborted");
-            return null;
+        if (!isEcdheMode) {
+            if (!remotePublicKeyModel.getKeyId().equals(encryptionModel.getSenderKeyId())) {
+                Log.e(TAG, "the keyId in the remote Public Key Model does not match the senderKeyId in encryptedModel, aborted");
+                return null;
+            }
         }
 
         // derive the encryption key
@@ -440,9 +406,8 @@ public class EcEncryption {
         return gson.fromJson(jsonString, PublicKeyModel.class);
     }
 
-    // todo change model to new class EncryptionModel
-    public static String encryptionModelToJson(EcdhModel encryptionModel) {
-        return new GsonBuilder().setPrettyPrinting().create().toJson(encryptionModel, EcdhModel.class);
+    public static String encryptionModelToJson(EncryptionModel encryptionModel) {
+        return new GsonBuilder().setPrettyPrinting().create().toJson(encryptionModel, EncryptionModel.class);
     }
 
     // todo change model to new class EncryptionModel
@@ -556,7 +521,19 @@ public class EcEncryption {
         AES_CBC_PKCS5PADDING, AES_GCM_NOPADDING
     }
 
-    public static EncryptionModel encryptAesInternal(String hkdfAlgorithm, String encryptionAlgorithm, String transformation, String senderKeyId, String recipientKeyId, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
+    public static EncryptionModel encryptAesInternal(
+            String hkdfAlgorithm,
+            String encryptionAlgorithm,
+            String transformation,
+            String senderKeyId,
+            String recipientKeyId,
+            byte[] deriveSalt,
+            String deriveName,
+            byte[] encryptionKey,
+            byte[] data,
+            boolean isEcdhe,
+            String senderPublicKeyBase64) {
+
         // todo check for encryptionAlgorithm allowed, nulled key + data
         //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
         //String encAlgorithm = "AES/CBC/PKCS5PADDING";
@@ -583,10 +560,14 @@ public class EcEncryption {
             return null;
         }
         // build the return model
+        String senderPublicKey = ""; // ecdh encryption
+        if (isEcdhe) {
+            senderPublicKey = senderPublicKeyBase64;
+        }
        return new EncryptionModel(
                 senderKeyId,
                 recipientKeyId,
-                "", // fill for ECDHE
+                senderPublicKey,
                 base64EncodingNpe(deriveSalt),
                 deriveName,
                 hkdfAlgorithm,

@@ -419,9 +419,9 @@ public class EcEncryption {
     }
 
     // todo change model to new class EncryptionModel
-    public static EcdhModel encryptionModelFromJson(String jsonString) {
+    public static EncryptionModel encryptionModelFromJson(String jsonString) {
         Gson gson = new Gson();
-        return gson.fromJson(jsonString, EcdhModel.class);
+        return gson.fromJson(jsonString, EncryptionModel.class);
     }
 
 
@@ -501,6 +501,37 @@ public class EcEncryption {
         pseudoRandomKey = hkdf.extract(salt, sharedSecret);
         // create expanded bytes for e.g. AES secret key
         return hkdf.expand(pseudoRandomKey, hkdf_name.toString().getBytes(StandardCharsets.UTF_8), 32);
+    }
+
+    public static byte[] getEncryptionKeyHkdf(String hkdfAlgorithm, String hkdf_name, byte[] sharedSecret, byte[] salt) {
+        // HKDF algorithm
+        HKDF hkdf = null;
+        if (hkdfAlgorithm.equals(HKDF_ALGORITHM.HMAC_SHA256.toString())) {
+            hkdf = HKDF.fromHmacSha256();
+        } else if (hkdfAlgorithm.equals(HKDF_ALGORITHM.HMAC_SHA512.toString())) {
+            hkdf = HKDF.fromHmacSha512();
+        } else {
+            // at this pint no valid deriveAlgorithm was found
+            Log.e(TAG, "no valid HKDF algorithm found, aborted");
+            return null;
+        }
+        String hkdfName;
+        if (hkdf_name.equals(HKDF_NAME.AES_KEY.toString())) {
+            hkdfName = HKDF_NAME.AES_KEY.toString();
+        } else {
+            // at this pint no valid hkdf_name was found
+            Log.e(TAG, "no valid HKDF name found, aborted");
+            return null;
+        }
+
+        if (sharedSecret == null) {
+            Log.d(TAG, "shared secret is NULL, aborted");
+        }
+        // generate a random salt
+        byte[] pseudoRandomKey;
+        pseudoRandomKey = hkdf.extract(salt, sharedSecret);
+        // create expanded bytes for e.g. AES secret key
+        return hkdf.expand(pseudoRandomKey, hkdfName.getBytes(StandardCharsets.UTF_8), 32);
     }
 
     public static byte[] getEncryptionKeyHkdf(HKDF_ALGORITHM hkdf_algorithm, HKDF_NAME hkdf_name, byte[] sharedSecret, byte[] salt) {

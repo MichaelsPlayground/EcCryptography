@@ -169,12 +169,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:enabled="false"
-                android:text="07 Recipient calculates the shared secret from (own) private key and sender's public key" />
+                android:text="07 Recipient calculates the shared secret from (own) private key and Sender's public key" />
 
             <include
                 layout="@layout/result_7_layout"/>
-
-
 
             <com.google.android.material.divider.MaterialDivider
                 android:layout_width="match_parent"
@@ -185,76 +183,41 @@
                 app:dividerInsetStart="16dp"
                 app:dividerThickness="4dp" />
 
-            <TextView
-                android:id="@+id/tv1"
+            <Button
+                android:id="@+id/ecdh08"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textAlignment="center"
-                android:textSize="16sp"
-                android:background="@drawable/round_rect_shape"
-                android:text="we do need permissions for NFC and Vibration" />
+                android:enabled="false"
+                android:text="08 derive the decryption key from the shared secret" />
 
-
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/etDataLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Data:"
-                android:visibility="visible"
-                app:boxCornerRadiusBottomEnd="5dp"
-                app:boxCornerRadiusBottomStart="5dp"
-                app:boxCornerRadiusTopEnd="5dp"
-                app:boxCornerRadiusTopStart="5dp"
-                app:endIconMode="clear_text">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etData"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:focusable="false"
-                    android:fontFamily="monospace"
-                    android:text=""
-                    android:textSize="14sp"
-                    android:visibility="visible"
-                    tools:ignore="KeyboardInaccessibleWidget" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/etLogLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Log:"
-                android:visibility="visible"
-                app:boxCornerRadiusBottomEnd="5dp"
-                app:boxCornerRadiusBottomStart="5dp"
-                app:boxCornerRadiusTopEnd="5dp"
-                app:boxCornerRadiusTopStart="5dp"
-                app:endIconMode="clear_text">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etLog"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:focusable="false"
-                    android:fontFamily="monospace"
-                    android:text=""
-                    android:textSize="14sp"
-                    android:visibility="visible"
-                    tools:ignore="KeyboardInaccessibleWidget" />
-            </com.google.android.material.textfield.TextInputLayout>
+            <include
+                layout="@layout/result_8_layout"/>
 
             <com.google.android.material.divider.MaterialDivider
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                app:dividerInsetEnd="16dp"
+                app:dividerInsetStart="16dp"
+                app:dividerThickness="4dp" />
+
+            <Button
+                android:id="@+id/ecdh09"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:enabled="false"
+                android:text="09 decrypt the data" />
+
+            <include
+                layout="@layout/result_9_layout"/>
+
+            <com.google.android.material.divider.MaterialDivider
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp"
                 app:dividerInsetEnd="16dp"
                 app:dividerInsetStart="16dp"

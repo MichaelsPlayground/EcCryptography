@@ -51,7 +51,7 @@ public class PrivateKeyModel {
         sb.append("key parameter: ").append(keyParameter).append("\n");
         sb.append("keyId: ").append(keyId).append("\n");
         sb.append("privateKeyBase64: ").append(privateKeyEncodedBase64).append("\n");
-        sb.append("publicKeyBase64: ").append(publicKeyEncodedBase64).append("\n");
+        sb.append("publicKeyBase64: ").append(publicKeyEncodedBase64);
         return sb.toString();
     }
 }

@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainAct";
 
-    Button btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9, btn10, btn11, btn12, btn13;
+    Button btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9, btn10, btn11, btn12, btn13, btn14, btn15;
     TextView tv2;
 
     private static final String EC_SPEC_P256 = "p-256";
@@ -93,6 +93,8 @@ public class MainActivity extends AppCompatActivity {
         btn11 = findViewById(R.id.btn11);
         btn12 = findViewById(R.id.btn12);
         btn13 = findViewById(R.id.btn13);
+        btn14 = findViewById(R.id.btn14);
+        btn15 = findViewById(R.id.btn15);
         tv2 = findViewById(R.id.tv2);
 
         // check for Android version
@@ -809,6 +811,24 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("").append("\n");
 
                 tv2.setText(sb.toString());
+            }
+        });
+
+        btn14.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                    Log.d(TAG, "btn14");
+                    Intent intent = new Intent(MainActivity.this, EcdhActivity.class);
+                    startActivity(intent);
+            }
+        });
+
+        btn15.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Log.d(TAG, "btn15");
+                //Intent intent = new Intent(MainActivity.this, EcdhActivity.class);
+                //startActivity(intent);
             }
         });
 

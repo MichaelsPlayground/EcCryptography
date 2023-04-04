@@ -310,6 +310,14 @@ public class EcEncryption {
     }
 
     /**
+     * single steps
+     * These steps are for demonstration only and do have no exception management
+     */
+
+
+
+
+    /**
      * internal methods
      */
 
@@ -608,6 +616,37 @@ public class EcEncryption {
     }
 
 
+    public static EncryptionModel encryptAesSingle(String deriveAlgorithm, String encryptionAlgorithm, String transformation, String aliasSender, String aliasRecipient, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
+        // todo check for encryptionAlgorithm allowed, nulled key + data
+        //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
+        //String encAlgorithm = "AES/CBC/PKCS5PADDING";
+        // todo cases CBC or GCM
+        byte[] initVector = new byte[0];
+        byte[] ciphertext;
+        SecretKey key;
+        key = new SecretKeySpec(encryptionKey, "AES"); //AES-256 key
+        Cipher cipher = null;
+        try {
+            cipher = Cipher.getInstance(transformation);
+            if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString())) {
+                initVector = generateRandomNumber(16);
+                cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(initVector));
+            } else if (encryptionAlgorithm.equals(EcdhModel.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString())) {
+                initVector = generateRandomNumber(12);
+                cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(16, initVector));
+            }
+            ciphertext = cipher.doFinal(data);
+        } catch (NoSuchAlgorithmException | IllegalBlockSizeException |
+                 BadPaddingException | NoSuchPaddingException |
+                 InvalidAlgorithmParameterException | InvalidKeyException e) {
+            //throw new RuntimeException(e);
+            return null;
+        }
+        // build the return model
+        //return new EcdhModel(alias, base64EncodingNpe(deriveSalt), deriveName, encryptionAlgorithm, base64EncodingNpe(initVector), base64EncodingNpe(ciphertext));
+        return new EncryptionModel(aliasSender, aliasRecipient, "", base64EncodingNpe(deriveSalt), deriveName, deriveAlgorithm, encryptionAlgorithm, base64EncodingNpe(initVector), base64EncodingNpe(ciphertext));
+    }
+
     public static EcdhModel encryptAes(String deriveAlgorithm, String encryptionAlgorithm, String transformation, String aliasRecipient, byte[] deriveSalt, String deriveName, byte[] encryptionKey, byte[] data) {
         // todo check for encryptionAlgorithm allowed, nulled key + data
         //String encAlgo = EcdhModel.ENCRYPTION_TYPE.AES_CBC_PKCS5PADDING.toString();
@@ -670,14 +709,12 @@ public class EcEncryption {
         return decryptedData;
     }
 
-
-
     public static String generateUuid() {
         UUID uuid = UUID.randomUUID();
         return uuid.toString();
     }
 
-    private static byte[] generateRandomNumber(int length) {
+    public static byte[] generateRandomNumber(int length) {
         if (length < 1) return null;
         byte[] number = new byte[length];
         SecureRandom secureRandom = new SecureRandom();

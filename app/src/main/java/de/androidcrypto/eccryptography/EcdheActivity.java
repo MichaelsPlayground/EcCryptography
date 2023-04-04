@@ -19,7 +19,7 @@ import de.androidcrypto.eccryptography.model.EncryptionModel;
 import de.androidcrypto.eccryptography.model.PrivateKeyModel;
 import de.androidcrypto.eccryptography.model.PublicKeyModel;
 
-public class EcdhActivity extends AppCompatActivity {
+public class EcdheActivity extends AppCompatActivity {
 
     private Button ecdhStep01, ecdhStep02, ecdhStep03, ecdhStep04, ecdhStep05, ecdhStep06, ecdhStep07, ecdhStep08, ecdhStep09;
 
@@ -30,6 +30,7 @@ public class EcdhActivity extends AppCompatActivity {
 
     private PrivateKeyModel priKeyModelSender, priKeyModelRecipient;
     private PublicKeyModel pubKeyModelSender, pubKeyModelRedipient;
+    String publicKeyModelRecipientJson;
     private byte[] sharedSecretSenderSide;
     private byte[] sharedSecretRecipientSide;
     private byte[][] derivedEncryptionKeyArray;
@@ -40,7 +41,7 @@ public class EcdhActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_ecdh);
+        setContentView(R.layout.activity_ecdhe);
 
         ecdhStep01 = findViewById(R.id.ecdh01);
         ecdhStep02 = findViewById(R.id.ecdh02);
@@ -84,7 +85,8 @@ public class EcdhActivity extends AppCompatActivity {
                 pubKeyModelRedipient = EcEncryption.getPublicKeyModelFromPrivateKeyModel(priKeyModelRecipient);
                 pri1.setText(priKeyModelSender.dump());
                 // show public key in JSON encoding
-                pub1.setText(EcEncryption.publicKeyModelToJson(pubKeyModelSender));
+                publicKeyModelRecipientJson = EcEncryption.publicKeyModelToJson(pubKeyModelSender);
+                pub1.setText(publicKeyModelRecipientJson);
                 pri2.setText(priKeyModelRecipient.dump());
                 // show public key in JSON encoding
                 pub2.setText(EcEncryption.publicKeyModelToJson(pubKeyModelRedipient));
@@ -150,21 +152,9 @@ public class EcdhActivity extends AppCompatActivity {
                             EcEncryption.HKDF_NAME.AES_KEY.toString(),
                             derivedEncryptionKeyArray[0],
                             plaintext,
-                            false, // true means that the own public key in included in response
-                            "" // empty means ECDH, public key was exchanged outside of encrypted data
+                            true, // true means that the own public key in included in response
+                            pubKeyModelSender.getPublicKeyEncodedBase64()
                     );
-                    /*
-                    EncryptionModel encryptedData = EcEncryption.encryptAesSingle(
-                            EcEncryption.HKDF_ALGORITHM.HMAC_SHA256.toString(),
-                            EcEncryption.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString(),
-                            "AES/GCM/NOPADDING",
-                            priKeyModelSender.getKeyId(),
-                            pubKeyModelRedipient.getKeyId(),
-                            derivedEncryptionKeyArray[1],
-                            EcEncryption.HKDF_NAME.AES_KEY.toString(),
-                            derivedEncryptionKeyArray[0],
-                            plaintext
-                    );*/
                     encryptedDataJson = EcEncryption.encryptionModelToJson(encryptedData);
                     result05.setText(encryptedDataJson);
                     result05Layout.setVisibility(View.VISIBLE);
@@ -184,9 +174,11 @@ public class EcdhActivity extends AppCompatActivity {
         ecdhStep07.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // calculate shared secret on recipient's side
+                // calculate shared secret on recipient's side, as it is ECDHE we take the sender's Public Key from encrypted data
+                encryptedDataRecipientSide = EcEncryption.encryptionModelFromJson(encryptedDataJson);
                 PrivateKey privateKey = EcEncryption.getPrivateKeyFromEncoded(EcEncryption.base64Decoding(priKeyModelRecipient.getPrivateKeyEncodedBase64()));
-                PublicKey remotePublicKey = EcEncryption.getPublicKeyFromEncoded(EcEncryption.base64Decoding(pubKeyModelSender.getPublicKeyEncodedBase64()));
+                //PublicKey remotePublicKey = EcEncryption.getPublicKeyFromEncoded(EcEncryption.base64Decoding(pubKeyModelSender.getPublicKeyEncodedBase64()));
+                PublicKey remotePublicKey = EcEncryption.getPublicKeyFromEncoded(EcEncryption.base64Decoding(encryptedDataRecipientSide.getSenderPublicKeyBase64()));
                 sharedSecretRecipientSide = EcEncryption.getEcdhSharedSecret(privateKey, remotePublicKey);
                 result07.setText(EcEncryption.base64EncodingNpe(sharedSecretRecipientSide));
                 result07Layout.setVisibility(View.VISIBLE);
@@ -198,14 +190,14 @@ public class EcdhActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 // get the decryption key
-                // we do have the encryptedDataJson available
-                encryptedDataRecipientSide = EcEncryption.encryptionModelFromJson(encryptedDataJson);
+                // we do have the encryptedDataJson available, this needs to be done in step 07 when running ECDHE !
+                //encryptedDataRecipientSide = EcEncryption.encryptionModelFromJson(encryptedDataJson);
                 derivedDecryptionKey = EcEncryption.getEncryptionKeyHkdf(
                         encryptedDataRecipientSide.getDeriveAlgorithm(),
                         encryptedDataRecipientSide.getDeriveName(),
                         sharedSecretRecipientSide,
                         EcEncryption.base64Decoding(encryptedDataRecipientSide.getDeriveSaltBase64())
-                        );
+                );
                 StringBuilder sb = new StringBuilder();
                 sb.append("The encryption key was derived with these parameter").append("\n");
                 sb.append("  HKDF algorithm: ").append(encryptedDataRecipientSide.getDeriveAlgorithm()).append("\n");

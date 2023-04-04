@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools">
 
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/input05Layout"
+        android:id="@+id/result02Layout"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:hint="Input some data to encrypt:"
+        android:hint="Result of step 02:"
         android:visibility="gone"
         app:boxCornerRadiusBottomEnd="5dp"
         app:boxCornerRadiusBottomStart="5dp"
@@ -19,12 +19,12 @@
         app:boxCornerRadiusTopStart="5dp">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/input05"
+            android:id="@+id/result02"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:focusable="true"
-            android:text=""
+            android:focusable="false"
+            android:text="Sender has it's own key pair and the Public Key of the Recipient,\nRecipient has it's own key pair only"
             android:textSize="14sp"
             tools:ignore="KeyboardInaccessibleWidget" />
     </com.google.android.material.textfield.TextInputLayout>

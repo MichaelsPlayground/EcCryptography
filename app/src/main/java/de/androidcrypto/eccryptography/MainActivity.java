@@ -827,8 +827,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Log.d(TAG, "btn15");
-                //Intent intent = new Intent(MainActivity.this, EcdhActivity.class);
-                //startActivity(intent);
+                Intent intent = new Intent(MainActivity.this, EcdheActivity.class);
+                startActivity(intent);
             }
         });
 

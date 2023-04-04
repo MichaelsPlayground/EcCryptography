@@ -12,6 +12,9 @@
         android:theme="@style/Theme.EcCryptography"
         tools:targetApi="31">
         <activity
+            android:name=".EcdheActivity"
+            android:exported="false" />
+        <activity
             android:name=".EcdhActivity"
             android:exported="false" />
         <activity

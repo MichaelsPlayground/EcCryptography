@@ -20,17 +20,18 @@ import de.androidcrypto.eccryptography.model.PublicKeyModel;
 
 public class EcdhActivity extends AppCompatActivity {
 
-    Button ecdhStep01, ecdhStep02, ecdhStep03, ecdhStep04, ecdhStep05;
+    private Button ecdhStep01, ecdhStep02, ecdhStep03, ecdhStep04, ecdhStep05, ecdhStep06, ecdhStep07;
 
     private com.google.android.material.textfield.TextInputEditText pri1, pub1, pri2, pub2, result03, result04, input05, result05;
-    com.google.android.material.textfield.TextInputLayout result02Layout, result03Layout, result04Layout, input05Layout, result05Layout;
+    private com.google.android.material.textfield.TextInputEditText result07;
+    private com.google.android.material.textfield.TextInputLayout result02Layout, result03Layout, result04Layout, input05Layout, result05Layout, result06Layout;
+    private com.google.android.material.textfield.TextInputLayout result07Layout;
 
-    PrivateKeyModel priKeyModel1;
-    PublicKeyModel pubKeyModel1;
-    PrivateKeyModel priKeyModel2;
-    PublicKeyModel pubKeyModel2;
-    byte[] sharedSecret;
-    byte[][] derivedEncryptionKeyArray;
+    private PrivateKeyModel priKeyModel1, priKeyModel2;
+    private PublicKeyModel pubKeyModel1, pubKeyModel2;
+    private byte[] sharedSecretSenderSide;
+    private byte[] sharedSecretRecipientSide;
+    private byte[][] derivedEncryptionKeyArray;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +43,8 @@ public class EcdhActivity extends AppCompatActivity {
         ecdhStep03 = findViewById(R.id.ecdh03);
         ecdhStep04 = findViewById(R.id.ecdh04);
         ecdhStep05 = findViewById(R.id.ecdh05);
+        ecdhStep06 = findViewById(R.id.ecdh06);
+        ecdhStep07 = findViewById(R.id.ecdh07);
         pri1 = findViewById(R.id.etPri1);
         pub1 = findViewById(R.id.etPub1);
         pri2 = findViewById(R.id.etPri2);
@@ -55,6 +58,9 @@ public class EcdhActivity extends AppCompatActivity {
         input05 = findViewById(R.id.input05);
         result05Layout = findViewById(R.id.result05Layout);
         result05 = findViewById(R.id.result05);
+        result06Layout = findViewById(R.id.result06Layout);
+        result07Layout = findViewById(R.id.result07Layout);
+        result07 = findViewById(R.id.result07);
 
         ecdhStep01.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -89,8 +95,8 @@ public class EcdhActivity extends AppCompatActivity {
             public void onClick(View view) {
                 PrivateKey privateKey = EcEncryption.getPrivateKeyFromEncoded(EcEncryption.base64Decoding(priKeyModel1.getPrivateKeyEncodedBase64()));
                 PublicKey remotePublicKey = EcEncryption.getPublicKeyFromEncoded(EcEncryption.base64Decoding(pubKeyModel2.getPublicKeyEncodedBase64()));
-                sharedSecret = EcEncryption.getEcdhSharedSecret(privateKey, remotePublicKey);
-                result03.setText(EcEncryption.base64EncodingNpe(sharedSecret));
+                sharedSecretSenderSide = EcEncryption.getEcdhSharedSecret(privateKey, remotePublicKey);
+                result03.setText(EcEncryption.base64EncodingNpe(sharedSecretSenderSide));
                 result03Layout.setVisibility(View.VISIBLE);
                 ecdhStep04.setEnabled(true);
             }
@@ -99,7 +105,7 @@ public class EcdhActivity extends AppCompatActivity {
         ecdhStep04.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                derivedEncryptionKeyArray = EcEncryption.deriveEncryptionKeyHkdf(EcEncryption.HKDF_ALGORITHM.HMAC_SHA256, EcEncryption.HKDF_NAME.AES_KEY, sharedSecret);
+                derivedEncryptionKeyArray = EcEncryption.deriveEncryptionKeyHkdf(EcEncryption.HKDF_ALGORITHM.HMAC_SHA256, EcEncryption.HKDF_NAME.AES_KEY, sharedSecretSenderSide);
                 // [0] contains the encryption key
                 // [1] contains the salt
                 StringBuilder sb = new StringBuilder();
@@ -137,11 +143,22 @@ public class EcdhActivity extends AppCompatActivity {
                     String encryptedDataJson = EcEncryption.encryptionModelToJson(encryptedData);
                     result05.setText(encryptedDataJson);
                     result05Layout.setVisibility(View.VISIBLE);
+                    ecdhStep06.setEnabled(true);
                 }
             }
         });
 
+        ecdhStep06.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                result06Layout.setVisibility(View.VISIBLE);
+                ecdhStep07.setEnabled(true);
+            }
+        });
+
     }
+
+
 
     private void clearData() {
         pri1.setText("");
@@ -155,12 +172,19 @@ public class EcdhActivity extends AppCompatActivity {
         result02Layout.setVisibility(View.GONE);
         result03.setText("");
         result03Layout.setVisibility(View.GONE);
+        ecdhStep04.setEnabled(false);
         result04.setText("");
         result04Layout.setVisibility(View.GONE);
+        ecdhStep05.setEnabled(false);
         input05.setText("The quick brown fox jumps over the lazy dog");
         input05Layout.setVisibility(View.GONE);
         result05Layout.setVisibility(View.GONE);
         result05.setText("");
+        ecdhStep06.setEnabled(false);
+        result06Layout.setVisibility(View.GONE);
+        ecdhStep07.setEnabled(false);
+        result07Layout.setVisibility(View.GONE);
+        result07.setText("");
 
     }
 

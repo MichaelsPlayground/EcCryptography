@@ -127,12 +127,63 @@
                 android:id="@+id/ecdh05"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:enabled="false"
                 android:text="05 encrypt data using AES in GCM mode" />
 
             <include
                 layout="@layout/result_5_layout"/>
 
+            <com.google.android.material.divider.MaterialDivider
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                app:dividerInsetEnd="16dp"
+                app:dividerInsetStart="16dp"
+                app:dividerThickness="4dp" />
+
+            <Button
+                android:id="@+id/ecdh06"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:enabled="false"
+                android:text="06 send the encrypted data to the recipient" />
+
+            <include
+                layout="@layout/result_6_layout"/>
+
+            <com.google.android.material.divider.MaterialDivider
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                app:dividerInsetEnd="16dp"
+                app:dividerInsetStart="16dp"
+                app:dividerThickness="4dp" />
+
+            <Button
+                android:id="@+id/ecdh07"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:enabled="false"
+                android:text="07 Recipient calculates the shared secret from (own) private key and sender's public key" />
+
+            <include
+                layout="@layout/result_7_layout"/>
+
+
+
+            <com.google.android.material.divider.MaterialDivider
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                app:dividerInsetEnd="16dp"
+                app:dividerInsetStart="16dp"
+                app:dividerThickness="4dp" />
 
             <TextView
                 android:id="@+id/tv1"

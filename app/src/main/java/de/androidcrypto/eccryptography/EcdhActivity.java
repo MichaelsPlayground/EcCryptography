@@ -7,6 +7,8 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -27,6 +29,8 @@ public class EcdhActivity extends AppCompatActivity {
     private com.google.android.material.textfield.TextInputEditText result07, result08, result09;
     private com.google.android.material.textfield.TextInputLayout result02Layout, result03Layout, result04Layout, input05Layout, result05Layout, result06Layout;
     private com.google.android.material.textfield.TextInputLayout result07Layout, result08Layout, result09Layout;
+    private RadioGroup aesChooser;
+    private RadioButton aesCbc, aesGcm;
 
     private PrivateKeyModel priKeyModelSender, priKeyModelRecipient;
     private PublicKeyModel pubKeyModelSender, pubKeyModelRedipient;
@@ -71,6 +75,9 @@ public class EcdhActivity extends AppCompatActivity {
         result08 = findViewById(R.id.result08);
         result09Layout = findViewById(R.id.result09Layout);
         result09 = findViewById(R.id.result09);
+        aesChooser = findViewById(R.id.rgEncryption);
+        aesCbc = findViewById(R.id.rbAesCbc);
+        aesGcm = findViewById(R.id.rbAesGcm);
 
         ecdhStep01.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -129,6 +136,7 @@ public class EcdhActivity extends AppCompatActivity {
                 result04Layout.setVisibility(View.VISIBLE);
                 input05Layout.setVisibility(View.VISIBLE);
                 ecdhStep05.setEnabled(true);
+                aesChooser.setVisibility(View.VISIBLE);
             }
         });
 
@@ -140,10 +148,20 @@ public class EcdhActivity extends AppCompatActivity {
                     result05.setText("You need to input some text to encrypt");
                 } else {
                     byte[] plaintext = plaintextString.getBytes(StandardCharsets.UTF_8);
+                    String encryptionAlgorithm = "";
+                    String transformation = "";
+                    if (aesCbc.isChecked()) {
+                        encryptionAlgorithm = EcEncryption.ENCRYPTION_ALGORITHM.AES_CBC_PKCS5PADDING.toString();
+                        transformation = "AES/CBC/PKCS5PADDING";
+                    }
+                    if (aesGcm.isChecked()) {
+                        encryptionAlgorithm = EcEncryption.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString();
+                        transformation = "AES/GCM/NOPADDING";
+                    }
                     EncryptionModel encryptedData = EcEncryption.encryptAesInternal(
                             EcEncryption.HKDF_ALGORITHM.HMAC_SHA256.toString(),
-                            EcEncryption.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString(),
-                            "AES/GCM/NOPADDING",
+                            encryptionAlgorithm,
+                            transformation,
                             priKeyModelSender.getKeyId(),
                             pubKeyModelRedipient.getKeyId(),
                             derivedEncryptionKeyArray[1],
@@ -288,6 +306,9 @@ public class EcdhActivity extends AppCompatActivity {
         ecdhStep08.setEnabled(false);
         result08Layout.setVisibility(View.GONE);
         result08.setText("");
+        result09Layout.setVisibility(View.GONE);
+        result09.setText("");
+        aesChooser.setVisibility(View.GONE);
     }
 
 }

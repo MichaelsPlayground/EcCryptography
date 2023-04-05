@@ -123,40 +123,13 @@
             <include
                 layout="@layout/input_5_layout"/>
 
-            <RadioGroup
-                android:id="@+id/rgEncryption"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:gravity="center_horizontal"
-                android:visibility="gone"
-                android:orientation="horizontal">
-
-                <RadioButton
-                    android:id="@+id/rbAesCbc"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:checked="false"
-                    android:text="AES CBC-mode" />
-
-                <RadioButton
-                    android:id="@+id/rbAesGcm"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:checked="true"
-                    android:text="AES GCM-mode" />
-
-            </RadioGroup>
-
             <Button
                 android:id="@+id/ecdh05"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:enabled="false"
-                android:text="05 encrypt data using AES in chosen mode" />
+                android:text="05 encrypt data using AES in GCM mode" />
 
             <include
                 layout="@layout/result_5_layout"/>

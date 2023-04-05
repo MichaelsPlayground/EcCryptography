@@ -8,10 +8,10 @@ The following describes the workflow of an **ECDH** ("**Elliptic-curve Diffie–
 
 There are 4 steps to run the encryption/decryption
 
-1) generate an EC keypair using the **curve P-256** for each party "one" and "two"
-2) calculate the shared secrets for both parties ("one" and "two")
-3) derive the encryption key using HKDF
-4) encrypt and decrypt data using the derived encryption key with AES in CBC- or GCM-mode
+1) **generate an EC key pair** using the **curve P-256** for each party "one" and "two"
+2) **calculate the shared secrets** for both parties ("one" and "two")
+3) **derive the encryption key** using HKDF
+4) **encrypt and decrypt data** using the derived encryption key with AES in CBC- or GCM-mode
 
 # What is the field of use for this technology ?
 
@@ -33,5 +33,12 @@ decryption method.
 
 The main advantage is: the encryption key was never send over an (unsecure) channel.
 
-There is an alternative protocol available: **ECDHE** ("**Elliptic Curve Diffie-Hellman Ephemeral**").
+There is an alternative variant available: **ECDHE** ("**Elliptic Curve Diffie-Hellman Ephemeral**"). This is the perfect solution for **forward security** 
+that is almost identical to ECDH with this difference:
+
+In ECDH the two communication parties exchange their Public Keys but in ECDHE only the recipient sends its Public Key to the sender. The sender generates 
+his key pair and calculates the shared secret as shown in step 02 above, derives the encryption key (step 03) and encrypts the data (step 04). Now the sender 
+sends the encrypted data **and his own Public Key** to the recipient; after that the sender deletes his own key pair ("Ephemeral").
+
+For decryption the recipient takes the encrypted data together with the accompanied Public Key of the sender and run steps 02, 03 and 04 for decryption.
 

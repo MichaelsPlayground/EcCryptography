@@ -171,18 +171,6 @@ public class EcdhActivity extends AppCompatActivity {
                             false, // true means that the own public key in included in response
                             "" // empty means ECDH, public key was exchanged outside of encrypted data
                     );
-                    /*
-                    EncryptionModel encryptedData = EcEncryption.encryptAesSingle(
-                            EcEncryption.HKDF_ALGORITHM.HMAC_SHA256.toString(),
-                            EcEncryption.ENCRYPTION_ALGORITHM.AES_GCM_NOPADDING.toString(),
-                            "AES/GCM/NOPADDING",
-                            priKeyModelSender.getKeyId(),
-                            pubKeyModelRedipient.getKeyId(),
-                            derivedEncryptionKeyArray[1],
-                            EcEncryption.HKDF_NAME.AES_KEY.toString(),
-                            derivedEncryptionKeyArray[0],
-                            plaintext
-                    );*/
                     encryptedDataJson = EcEncryption.encryptionModelToJson(encryptedData);
                     result05.setText(encryptedDataJson);
                     result05Layout.setVisibility(View.VISIBLE);
@@ -273,10 +261,7 @@ public class EcdhActivity extends AppCompatActivity {
                 result09Layout.setVisibility(View.VISIBLE);
             }
         });
-
     }
-
-
 
     private void clearData() {
         pri1.setText("");
